@@ -1,0 +1,1 @@
+This directory just contains screenshots for use in the main repo README.md file. Nothing in here is needed for the addon to function.

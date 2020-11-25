@@ -37,7 +37,7 @@ class MaterialSelectionPropertyGroup(bpy.types.PropertyGroup):
             ("albedo", "Albedo/Base Color", "This material provides the albedo, or base color, of the object."),
             ("mask_unity", "Mask (Unity)", "This material is a Unity mask texture, where the red channel is metallic, green is occlusion, blue is the detail mask, and alpha is smoothness."),
             ("normal_unity", "Normal (Unity)", "This material is a normal map for use in Unity (tangent space, Y+)."),
-            ("other", "Other", "Any use not fitting the options above")
+            ("other", "Other", "Any use not fitting the options above.")
         ]
     )
 
@@ -58,11 +58,13 @@ def GetCameraControlModeOptions(self, context):
     return items
 
 def getCameraControlMode(self):
-    items = GetCameraControlModeOptions(self, bpy.context)
-
     val = self.get("cameraControlMode")
-    if val is not None:
-        # Make sure the chosen value still exists in our list
+
+    if val is None:
+        val = 0
+    else:
+        # Make sure the chosen value is still an option based on latest configuration
+        items = GetCameraControlModeOptions(self, bpy.context)
         isValid = any(item[3] == val for item in items)
 
         if not isValid:
@@ -74,32 +76,40 @@ def setCameraControlMode(self, value):
     self["cameraControlMode"] = value
 
 class ReportingPropertyGroup(bpy.types.PropertyGroup):
-    currentFrameNum: bpy.props.IntProperty()
+    currentFrameNum: bpy.props.IntProperty() # which frame we are currently rendering
 
-    elapsedTime: bpy.props.FloatProperty()
+    elapsedTime: bpy.props.FloatProperty() # how much time has elapsed in the current job, in seconds
 
-    fileExplorerType: bpy.props.EnumProperty(
+    hasAnyJobStarted: bpy.props.BoolProperty() # whether any job has started in the current session
+
+    jobInProgress: bpy.props.BoolProperty() # whether a job is running right now
+
+    lastErrorMessage: bpy.props.StringProperty() # the last error reported by a job (generally job-ending)
+
+    outputDirectory: bpy.props.StringProperty() # the absolute path of the directory of the final spritesheet/JSON output
+
+    suppressTerminalOutput: bpy.props.BoolProperty(
+        name = "Suppress Terminal Output",
+        description = "If true, render jobs will not print anything to the system console (stdout)",
+        default = True
+    )
+
+    systemType: bpy.props.EnumProperty( # what kind of file explorer is available on this system
         items = [
-            ("unknown",  "", ""),
-            ("none", "", ""),
+            ("unchecked",  "", ""),
+            ("unknown", "", ""),
             ("windows", "", "")
         ]
     )
 
-    hasAnyJobStarted: bpy.props.BoolProperty() # whether any job has started in the current session
-
-    jobInProgress: bpy.props.BoolProperty()
-
-    lastErrorMessage: bpy.props.StringProperty()
-
-    outputDirectory: bpy.props.StringProperty()
-
-    totalNumFrames: bpy.props.IntProperty()
+    totalNumFrames: bpy.props.IntProperty() # the total number of frames which will be rendered
 
     def estimatedTimeRemaining(self):
         if self.currentFrameNum == 0 or self.totalNumFrames == 0:
             return None
 
+        # This isn't fully accurate since we have some time-consuming tasks regardless of the number of
+        # frames, but render time is the vast majority of any substantial job, so close enough
         timePerFrame = self.elapsedTime / self.currentFrameNum
         return (self.totalNumFrames - self.currentFrameNum) * timePerFrame
 
@@ -151,7 +161,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     padToPowerOfTwo: bpy.props.BoolProperty(
-        name = "Force Power-of-Two Output",
+        name = "Pad to Power-of-Two",
         description = "If true, all output images will be padded with transparent pixels to the smallest power-of-two size that can fit the original output",
         default = True
     )

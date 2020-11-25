@@ -1,4 +1,6 @@
 import bpy
+from bpy.app.handlers import persistent
+import functools
 import importlib
 import math
 import os 
@@ -6,7 +8,13 @@ import sys
 
 bl_info = {
     "name": "Spritesheet Renderer",
+    "description": "Add-on automating the process of rendering a 3D model as a spritesheet.",
+    "author": "Chris Hayes",
+    "version": (1, 0),
     "blender": (2, 90, 0),
+    "location": "View3D > UI > Spritesheet",
+    "support": "COMMUNITY",
+    "tracker": "https://github.com/chrishayesmu/Blender-Spritesheet-Renderer/issues",
     "category": "Animation"
 }
 
@@ -30,6 +38,8 @@ from util import Bounds
 importlib.reload(Bounds)
 from util import Camera
 importlib.reload(Camera)
+from util import FileSystemUtil
+importlib.reload(FileSystemUtil)
 from util import ImageMagick
 importlib.reload(ImageMagick)
 from util import SceneSnapshot
@@ -39,8 +49,8 @@ importlib.reload(StringUtil)
 from util import TerminalOutput
 importlib.reload(TerminalOutput)
 
-from custom_operators import OpenDirectory
-importlib.reload(OpenDirectory)
+from custom_operators import Misc
+importlib.reload(Misc)
 from custom_operators import spritesheetRenderModal
 importlib.reload(spritesheetRenderModal)
 
@@ -54,7 +64,13 @@ class ShowAddonPrefsOperator(bpy.types.Operator):
         bpy.ops.preferences.addon_show(module = __package__)
         return {'FINISHED'}
 
-def populateAnimationSelections():
+def findImageMagickExe():
+    # Only look for the exe if the path isn't already set
+    if not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
+        bpy.ops.spritesheet._misc("INVOKE_DEFAULT", action = "locateImageMagick")
+
+@persistent
+def populateAnimationSelections(_unused):
     scene = bpy.context.scene
     props = scene.SpritesheetPropertyGroup
     props.animationSelections.clear()
@@ -66,7 +82,8 @@ def populateAnimationSelections():
 
     return 10.0
 
-def populateMaterialSelections():
+@persistent
+def populateMaterialSelections(_unused):
     scene = bpy.context.scene
     props = scene.SpritesheetPropertyGroup
     props.materialSelections.clear()
@@ -89,17 +106,21 @@ def populateMaterialSelections():
 
     return 10.0
 
-def resetReportingProps():
+@persistent
+def resetReportingProps(_unused):
     reportingProps = bpy.context.scene.ReportingPropertyGroup
 
     reportingProps.currentFrameNum = 0
-    reportingProps.fileExplorerType = OpenDirectory.CheckFileExplorerType()
+    reportingProps.elapsedTime = 0
     reportingProps.hasAnyJobStarted = False
     reportingProps.jobInProgress = False
     reportingProps.lastErrorMessage = ""
+    reportingProps.outputDirectory = ""
+    reportingProps.systemType = FileSystemUtil.getSystemType()
     reportingProps.totalNumFrames = 0
 
 classes = [
+    # Property groups
     SpritesheetPropertyGroup.AnimationSelectionPropertyGroup,
     SpritesheetPropertyGroup.MaterialSelectionPropertyGroup,
     SpritesheetPropertyGroup.ReportingPropertyGroup,
@@ -107,9 +128,13 @@ classes = [
     PropertyList.UI_UL_MaterialSelectionPropertyList,
     Prefs.SpritesheetAddonPreferences,
     SpritesheetPropertyGroup.SpritesheetPropertyGroup,
+
+    # Operators
     ShowAddonPrefsOperator,
-    OpenDirectory.OpenDirectoryOperator,
+    Misc.MiscOperator,
     spritesheetRenderModal.SpritesheetRenderModalOperator,
+
+    # UI
     Panels.ScenePropertiesPanel,
     Panels.RenderPropertiesPanel,
     Panels.AnimationsPanel,
@@ -124,13 +149,24 @@ def register():
     
     bpy.types.Scene.SpritesheetPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.SpritesheetPropertyGroup)
     bpy.types.Scene.ReportingPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.ReportingPropertyGroup)
-    bpy.app.timers.register(populateAnimationSelections, persistent = True)
-    bpy.app.timers.register(populateMaterialSelections, persistent = True)
-    bpy.app.timers.register(resetReportingProps, first_interval = .1)
+    
+    # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
+    bpy.app.handlers.load_post.append(populateAnimationSelections)
+    bpy.app.handlers.load_post.append(populateMaterialSelections)
+    bpy.app.handlers.load_post.append(resetReportingProps)
+    
+    bpy.app.timers.register(findImageMagickExe, first_interval = .1)
+    bpy.app.timers.register(functools.partial(populateAnimationSelections, None), persistent = True)
+    bpy.app.timers.register(functools.partial(populateMaterialSelections, None), persistent = True)
+    bpy.app.timers.register(functools.partial(resetReportingProps, None), first_interval = .1)
+
+
 
 def unregister():
+    if bpy.app.timers.is_registered(findImageMagickExe): bpy.app.timers.unregister(findImageMagickExe)
     if bpy.app.timers.is_registered(populateMaterialSelections): bpy.app.timers.unregister(populateMaterialSelections)
     if bpy.app.timers.is_registered(populateAnimationSelections): bpy.app.timers.unregister(populateAnimationSelections)
+    if bpy.app.timers.is_registered(resetReportingProps): bpy.app.timers.unregister(resetReportingProps)
     del bpy.types.Scene.ReportingPropertyGroup
     del bpy.types.Scene.SpritesheetPropertyGroup
     

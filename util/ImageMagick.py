@@ -5,6 +5,7 @@ import os
 import subprocess
 
 from preferences import SpritesheetAddonPreferences as Prefs
+from util import FileSystemUtil
 
 def assembleFramesIntoSpritesheet(spriteSize, totalNumFrames, tempDirPath, outputFilePath):
     imageMagickArgs = _imageMagickArgs(spriteSize, totalNumFrames, tempDirPath, outputFilePath)
@@ -15,6 +16,30 @@ def assembleFramesIntoSpritesheet(spriteSize, totalNumFrames, tempDirPath, outpu
         "stderr": str(processOutput.stderr),
         "succeeded": processOutput.returncode == 0
     }
+
+def locateImageMagickExe():
+    system = FileSystemUtil.getSystemType()
+    if system != "windows":
+        # Only supported for Windows right now
+        return None
+
+    # The most common installation paths will be in Program Files, so we'll just check those and call it good
+    fileSystems = FileSystemUtil.getFileSystems()
+    subdirs = ["Program Files", "Program Files (x86)"]
+
+    for fileSystem in fileSystems:
+        for subdir in subdirs:
+            subdirPath = os.path.join(fileSystem, subdir)
+            subdirGlobPath = os.path.join(subdirPath, "*")
+
+            for path in glob.iglob(subdirGlobPath, recursive = False):
+                if "imagemagick" in path.lower():
+                    exePath = os.path.join(path, "magick.exe")
+
+                    if os.path.isfile(exePath) and validateImageMagickAtPath(exePath)["succeeded"]:
+                        return exePath
+
+    return None
 
 def padImageToSize(imagePath, size):
     extentArg = str(size[0]) + "x" + str(size[1])
@@ -36,15 +61,20 @@ def padImageToSize(imagePath, size):
 
     return processOutput.returncode == 0
 
-def validateImageMagickPath():
-    if not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
-        return {
-            "stderr": "ImageMagick path is not configured in Addon Preferences",
-            "succeeded": False
-        }
+def validateImageMagickAtPath(path = None):
+    """Checks that ImageMagick is installed at the given path, or the path in the addon preferences if none is provided as an argument."""
 
-    # Just run a basic command to make sure ImageMagick is installed and the path is configured correctly
-    processOutput = subprocess.run([bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath, "-version"], stdout = subprocess.PIPE, stderr = subprocess.PIPE, text = True)
+    if path is None:
+        if not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
+            return {
+                "stderr": "ImageMagick path is not configured in Addon Preferences",
+                "succeeded": False
+            }
+        else:
+            path = bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath
+
+    # Just run a basic command to make sure ImageMagick is installed and the path is correct
+    processOutput = subprocess.run([path, "-version"], stdout = subprocess.PIPE, stderr = subprocess.PIPE, text = True)
 
     return {
         "stderr": str(processOutput.stderr),

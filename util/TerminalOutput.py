@@ -8,21 +8,22 @@ class TerminalWriter:
         intended for use with stdout, and only with a terminal connected.
     """
 
-    def __init__(self, stream):
+    def __init__(self, stream, suppressOutput):
         self.indent = 0
         self._maxQueueSize = 300
         self._outStream = stream
         self._outQueue = []
+        self._suppressOutput = suppressOutput
 
     def clearTerminal(self):
-        if not self._outStream.isatty():
+        if self._suppressOutput or not self._outStream.isatty():
             return
 
         self._outStream.write("\x1b[2J\x1b[H")
         self._outStream.flush()
 
     def write(self, msg, unpersistedPortion = None, persistMsg = True, ignoreIndent = False):
-        if not self._outStream.isatty():
+        if self._suppressOutput or not self._outStream.isatty():
             return
 
         # Remove any leading newlines to add back later, so they don't mess with the indent.

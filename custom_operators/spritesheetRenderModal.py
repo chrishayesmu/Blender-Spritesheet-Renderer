@@ -36,30 +36,36 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
 
             if not props.targetObject:
                 reason = "Target Object is not set."
+            elif not props.renderCamera:
+                reason = "Render Camera is not set."
+            elif not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
+                reason = "ImageMagick path is not set in Addon Preferences."
             elif props.useAnimations and not props.targetObject.animation_data:
                 reason = "'Animate During Render' is enabled, but Target Object has no animation data."
             elif props.useAnimations and len(enabledActionSelections) == 0:
-                reason = "'Animate During Render' is enabled, but no materials have been selected for use."
+                reason = "'Animate During Render' is enabled, but no animations have been selected for use."
             elif props.separateFilesPerAnimation and not props.useAnimations:
                 reason = "'Separate Files Per Animation' is enabled, but 'Animate During Render' is not."
+            elif props.separateFilesPerRotation and not props.rotateObject:
+                reason = "'Separate Files Per Rotation' is enabled, but 'Rotate Object' is not."
             elif props.useMaterials and len(props.targetObject.data.materials) != 1:
                 reason = "If 'Render Multiple Materials' is enabled, Target Object must have exactly 1 material slot."
             elif props.useMaterials and len(enabledMaterialSelections) == 0:
                 reason = "'Render Multiple Materials' is enabled, but no materials have been selected for use."
-            elif props.controlCamera and props.cameraControlMode == "unselected":
-                reason = "'Control Render Camera' is enabled, but the control mode has not been set."
-            elif not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
-                reason = "ImageMagick path is not set in Addon Preferences."
+            elif props.controlCamera and props.renderCamera and props.renderCamera.data.type != "ORTHO":
+                reason = "'Control Render Camera' is currently only supported for orthographic cameras."
 
             SpritesheetRenderModalOperator.renderDisabledReason = reason
             
             return not reason
         except Exception as e:
-            print("Error occurred in SpritesheetRenderModalOperator")
+            print("Error occurred in SpritesheetRenderModalOperator.poll")
             print(e)
             return False
 
     def invoke(self, context, event):
+        reportingProps = context.scene.ReportingPropertyGroup
+
         self.jsonData = {}
         self.outputDir = None
         self._error = None
@@ -67,10 +73,12 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         self._lastJobStartTime = None
         self._nextJobId = 0
         self._startTime = time.clock()
-        self._terminalWriter = TerminalWriter(sys.stdout)
+        self._terminalWriter = TerminalWriter(sys.stdout, reportingProps.suppressTerminalOutput)
         self._sceneSnapshot = SceneSnapshot(context, self._terminalWriter)
 
-        self._generator = self._frameRenderGenerator(context)
+        # Execute generator a single time to set up all reporting properties and validate config; this won't render anything yet
+        self._generator = self._generateFramesAndSpritesheets(context)
+        next(self._generator)
 
         self.execute(context)
 
@@ -125,7 +133,7 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
             self._terminalWriter.write("\n\nError occurred, cancelling operator: {}\n\n".format(self._error))
             self.report({'ERROR'}, self._error)
 
-    def _frameRenderGenerator(self, context):
+    def _generateFramesAndSpritesheets(self, context):
         scene = context.scene
         props = scene.SpritesheetPropertyGroup
         reportingProps = scene.ReportingPropertyGroup
@@ -136,13 +144,11 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         self._terminalWriter.write("\n\n---------- Starting spritesheet render job ----------\n\n")
 
         try:
-            result = ImageMagick.validateImageMagickPath()
+            result = ImageMagick.validateImageMagickAtPath()
             if not result["succeeded"]:
                 self._error = "ImageMagick check failed\n" + result["stderr"]
                 return
         except Exception as e:
-            print("Error occurred while validating ImageMagick executable path")
-            print(e)
             self._error = "Failed to validate ImageMagick executable. Check that the path is correct in Addon Preferences."
             return
 
@@ -177,7 +183,7 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         
         # Variables for progress tracking
         materialNumber = 0
-        expectedJsonFiles = (len(rotations) if props.separateFilesPerRotation else 1) * (len(enabledActions) if props.separateFilesPerAnimation else 1) # materials never result in separate JSON files
+        numExpectedJsonFiles = (len(rotations) if props.separateFilesPerRotation else 1) * (len(enabledActions) if props.separateFilesPerAnimation else 1) # materials never result in separate JSON files
 
         reportingProps.totalNumFrames = self._countTotalFrames(enabledMaterials, rotations, enabledActions)
         self._terminalWriter.write("Expecting to render a total of {} frames\n".format(reportingProps.totalNumFrames))
@@ -191,16 +197,20 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
 
         self._terminalWriter.write("File output will be generated {}\n\n".format(outputMode))
 
+        # We yield once before modifying the scene at all, so that all of the reporting properties are set up
+        yield
+
         if props.controlCamera and props.cameraControlMode == "move_once":
             self._optimizeCamera(context, rotationRoot = rotationRoot, rotations = rotations, enabledActions = enabledActions)
 
         self._terminalWriter.write("\n")
 
+        framesSinceLastOutput = 0
+
         for material in enabledMaterials:
             materialNumber += 1
             materialName = material.name if material else "N/A"
             renderData = []
-            stillFrameNumber = 0
             totalFramesForMaterial = 0
             tempDir = tempfile.TemporaryDirectory()
 
@@ -228,7 +238,6 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                 
                 for action in enabledActions:
                     actionNumber += 1
-                    totalFramesForAction = 0
 
                     if action is not None:
                         self._terminalWriter.write("Processing action {} of {}: \"{}\"\n".format(actionNumber, len(enabledActions), action.name))
@@ -243,14 +252,13 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                         actionData["rotation"] = rotationAngle
                         renderData.append(actionData)
 
-                        totalFramesForAction += actionData["numFrames"]
-                        totalFramesForMaterial += actionData["numFrames"]
+                        framesSinceLastOutput += actionData["numFrames"]
 
                         # Render now if files are being split by animation, so we can wipe out all the per-frame
                         # files before processing the next animation
                         if separateFilesPerAnimation:
                             self._terminalWriter.write("\nCombining image files for action {} of {}\n".format(actionNumber, len(enabledActions)))
-                            imageMagickResult = self._runImageMagick(props, reportingProps, action, totalFramesForAction, tempDirPath, rotationAngle)
+                            imageMagickResult = self._runImageMagick(props, reportingProps, action, framesSinceLastOutput, tempDirPath, rotationAngle)
 
                             if not imageMagickResult["succeeded"]: # error running ImageMagick
                                 return
@@ -258,15 +266,15 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                             self._createJsonFile(props, reportingProps, enabledMaterialSelections, renderData, imageMagickResult)
                             self._terminalWriter.write("\n")
                             
+                            framesSinceLastOutput = 0
                             renderData = []
                             tempDir = tempfile.TemporaryDirectory() # change directories for per-frame files
 
                         self._terminalWriter.indent -= 1
                     else:
-                        stillData = self._renderStill(rotationAngle, stillFrameNumber, tempDirPath)
+                        stillData = self._renderStill(rotationAngle, framesSinceLastOutput, tempDirPath)
                         renderData.append(stillData)
-                        stillFrameNumber += 1
-                        totalFramesForMaterial += 1
+                        framesSinceLastOutput += 1
 
                         yield
 
@@ -277,7 +285,7 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                     self._terminalWriter.indent += 1
 
                     # Output one file for the whole rotation, with all animations in it
-                    imageMagickResult = self._runImageMagick(props, reportingProps, action, totalFramesForAction, tempDirPath, rotationAngle)
+                    imageMagickResult = self._runImageMagick(props, reportingProps, action, framesSinceLastOutput, tempDirPath, rotationAngle)
                 
                     if not imageMagickResult["succeeded"]: # error running ImageMagick
                         return
@@ -286,8 +294,8 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                     self._terminalWriter.write("\n")
                     self._terminalWriter.indent -= 1
 
+                    framesSinceLastOutput = 0
                     renderData = []
-                    stillFrameNumber = 0
                     tempDir = tempfile.TemporaryDirectory() # change directories for per-frame files
                     
                 self._terminalWriter.indent -= 1
@@ -298,7 +306,7 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                 self._terminalWriter.write("\nCombining image files for material {} of {}\n".format(materialNumber, len(enabledMaterials)))
                 self._terminalWriter.indent += 1
                 # Output one file for the entire material
-                imageMagickResult = self._runImageMagick(props, reportingProps, action, totalFramesForMaterial, tempDirPath, rotationAngle)
+                imageMagickResult = self._runImageMagick(props, reportingProps, action, framesSinceLastOutput, tempDirPath, rotationAngle)
             
                 if not imageMagickResult["succeeded"]: # error running ImageMagick
                     return
@@ -307,8 +315,8 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                 self._terminalWriter.write("\n")
                 self._terminalWriter.indent -= 1
 
+                framesSinceLastOutput = 0
                 renderData = []
-                stillFrameNumber = 0
                 tempDir = tempfile.TemporaryDirectory() # change directories for per-frame files
 
             self._terminalWriter.indent -= 1
@@ -319,7 +327,7 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         self._sceneSnapshot.restoreFromSnapshot(context)
 
         # Do some sanity checks and modify the final output based on the result
-        sanityChecksPassed = self._performEndingSanityChecks(expectedJsonFiles, reportingProps)
+        sanityChecksPassed = self._performEndingSanityChecks(numExpectedJsonFiles, reportingProps)
         totalElapsedTime = time.clock() - self._startTime
         timeString = StringUtil.timeAsString(totalElapsedTime)
 
@@ -339,13 +347,14 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
             dir = os.path.dirname(bpy.data.filepath)
             return os.path.join(dir, "Rendered spritesheets")
         else:
-            return os.path.join(os.getcwd(), "Rendered spritesheets")
+            # Use the user's home directory
+            return os.path.join(str(pathlib.Path.home()), "Rendered spritesheets")
 
     def _createFilePath(self, props, action, rotationAngle, materialOverride = None, includeMaterial = True):
         if bpy.data.filepath:
             filename, _ = os.path.splitext(os.path.basename(bpy.data.filepath))
         else:
-            filename = "rendered_spritesheet"
+            filename = props.targetObject.name + "_render"
 
         outputFilePath = os.path.join(self._baseOutputDir(), filename)
 
@@ -515,7 +524,7 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         if reportJob:
             self._reportJob(jobTitle, completeMsg, jobId, reportingProps, isComplete = True)
 
-    def _performEndingSanityChecks(self, expectedJsonFiles, reportingProps):
+    def _performEndingSanityChecks(self, numExpectedJsonFiles, reportingProps):
         jobId = self._getNextJobId()
 
         if reportingProps.currentFrameNum != reportingProps.totalNumFrames:
@@ -525,10 +534,10 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         # Make sure all the file paths we wrote in the JSON actually exist
         self._terminalWriter.write("Rendering complete. Performing sanity checks before ending operation.\n")
         self._terminalWriter.indent += 1
-        if expectedJsonFiles == len(self.jsonData):
-            self._reportJob("Sanity check", "wrote the expected number of JSON files ({})".format(expectedJsonFiles), jobId, reportingProps, isComplete = True)
+        if numExpectedJsonFiles == len(self.jsonData):
+            self._reportJob("Sanity check", "wrote the expected number of JSON files ({})".format(numExpectedJsonFiles), jobId, reportingProps, isComplete = True)
         else:
-            self._reportJob("Sanity check", "expected to write {} JSON files but found {}".format(expectedJsonFiles, len(self.jsonData)), jobId, reportingProps, isError = True)
+            self._reportJob("Sanity check", "expected to write {} JSON files but found {}".format(numExpectedJsonFiles, len(self.jsonData)), jobId, reportingProps, isError = True)
             self._error = "An internal error occurred while writing JSON files."
             return False
 
@@ -643,13 +652,13 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
 
         yield actionData
 
-    def _renderStill(self, rotationAngle, stillFrameNumber, tempDirPath):
+    def _renderStill(self, rotationAngle, frameNumber, tempDirPath):
         # Renders a single frame
         scene = bpy.context.scene
         props = scene.SpritesheetPropertyGroup
         reportingProps = scene.ReportingPropertyGroup
 
-        filename = "out_still_" + str(stillFrameNumber).zfill(4)
+        filename = "out_still_" + str(frameNumber).zfill(4)
 
         if props.rotateObject:
             filename += "_rot" + str(rotationAngle).zfill(3)
@@ -662,9 +671,13 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
             "rotation": rotationAngle
         }
 
-        self._terminalWriter.write("Rendering single frame without animation\n")
+        jobId = self._getNextJobId()
+        self._reportJob("Single frame", "rendering", jobId, reportingProps)
+
         scene.render.filepath = filepath
         self._runRenderWithoutStdout(props, reportingProps)
+
+        self._reportJob("Single frame", "rendered successfully", jobId, reportingProps, isComplete = True)
 
         return data
 
@@ -677,10 +690,7 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
             self._lastJobStartTime = time.clock()
 
         jobTimeSpent = time.clock() - self._lastJobStartTime
-        if jobTimeSpent > 0.001:
-            jobTimeSpentString = "[{}]".format(StringUtil.timeAsString(jobTimeSpent, precision = 2, includeHours = False))
-        else:
-            jobTimeSpentString = ""
+        jobTimeSpentString = "[{}]".format(StringUtil.timeAsString(jobTimeSpent, precision = 2, includeHours = False))
 
         msg = title + ": " + text
 
@@ -725,6 +735,11 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         self._terminalWriter.write(msg, unpersistedPortion = progressBar + timeString, persistMsg = persistMessage)
 
     def _runRenderWithoutStdout(self, props, reportingProps):
+        """Renders a single frame without printing the norma message to stdout
+        
+        When saving a rendered image, usually Blender outputs a message like 'Saved <filepath> ...', which clogs the output.
+        This method renders without that message being printed."""
+
         if props.controlCamera and props.cameraControlMode == "move_each_frame":
             # Don't report job because this method is always being called inside of another job
             self._optimizeCamera(bpy.context, reportJob = False)
@@ -777,11 +792,9 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
         scene = bpy.context.scene
         props = scene.SpritesheetPropertyGroup
         
-        scene.render.engine = 'CYCLES'
         scene.render.image_settings.file_format = 'PNG'
         scene.render.image_settings.color_mode = 'RGBA'
         scene.render.film_transparent = True  # Transparent PNG
         scene.render.bake_margin = 0
-        scene.render.resolution_percentage = 100
         scene.render.resolution_x = props.spriteSize[0]
         scene.render.resolution_y = props.spriteSize[1]
