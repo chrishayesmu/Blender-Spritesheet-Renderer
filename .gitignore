@@ -139,3 +139,6 @@ dmypy.json
 
 # Local History for Visual Studio Code
 .history/
+
+# Releases directory is just copies of the code base at the given release tag
+Releases

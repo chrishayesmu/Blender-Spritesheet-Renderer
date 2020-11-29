@@ -1,5 +1,16 @@
 {
     "python.autoComplete.extraPaths": [
         "C:/Users/Chris/Downloads/blender_autocomplete-master/blender_autocomplete-master/2.90"
-    ]
+    ],
+    "git.autorefresh": false,
+    "git.autoRepositoryDetection": false,
+    "git.decorations.enabled": false,
+    "git.enabled": false,
+    "git.enableStatusBarSync": false,
+    "git.openDiffOnClick": false,
+    "git.showCommitInput": false,
+    "git.showProgress": false,
+    "git.showInlineOpenFileAction": false,
+    "git.suggestSmartCommit": false,
+    "git.terminalAuthentication": false
 }

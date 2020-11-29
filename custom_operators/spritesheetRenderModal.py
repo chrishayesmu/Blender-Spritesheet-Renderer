@@ -399,10 +399,14 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
             self._reportJob("JSON dump", "JSON file already written at " + jsonFilePath, jobId, reportingProps, isSkipped = True)
             return
 
+        padding = imageMagickData["args"]["padding"] if "padding" in imageMagickData["args"] else (0, 0)
+
         jsonData = {
-            "baseObjectName": os.path.splitext(os.path.basename(bpy.data.filepath))[0] if bpy.data.filepath else "target_object",
+            "baseObjectName": os.path.splitext(os.path.basename(bpy.data.filepath))[0] if bpy.data.filepath else props.targetObject.name,
             "spriteWidth": props.spriteSize[0],
             "spriteHeight": props.spriteSize[1],
+            "paddingWidth": padding[0],
+            "paddingHeight": padding[1],
             "numColumns": imageMagickData["args"]["numColumns"],
             "numRows": imageMagickData["args"]["numRows"]
         }
@@ -785,6 +789,10 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
                 self._reportJob("ImageMagick", "Padding output image to power-of-two size {}".format(targetSizeStr), jobId, reportingProps)
                 ImageMagick.padImageToSize(imageMagickOutput["args"]["outputFilePath"], targetSize)
                 self._reportJob("ImageMagick", "Output image successfully padded to power-of-two size {}".format(targetSizeStr), jobId, reportingProps, isComplete = True)
+
+                # Record padding in JSON for tool integration
+                paddingAmount = (targetSize[0] - imageSize[0], targetSize[1] - imageSize[1])
+                imageMagickOutput["args"]["padding"] = paddingAmount
 
         return imageMagickOutput
 
