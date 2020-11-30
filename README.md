@@ -19,7 +19,7 @@ Currently Spritesheet Renderer is only tested on Blender 2.9, though it may work
 
 ## Unity integration
 
-I am personally working on a Unity project, so I am writing an asset importer for Unity to handle slicing and animating spritesheets based on the JSON output. I will provide a link to that when ready.
+I am personally working on a Unity project, so I have written an asset importer for Unity to handle slicing and animating spritesheets based on the JSON output. It can be found [on my GitHub](https://github.com/chrishayesmu/Unity-Spritesheet-Importer).
 
 # Installation
 
