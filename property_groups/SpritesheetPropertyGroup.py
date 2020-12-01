@@ -221,5 +221,5 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     separateFilesPerRotation: bpy.props.BoolProperty(
         name = "Separate Files Per Rotation",
         description = "If 'Rotate During Render' is enabled, this will generate one output file per rotation option",
-        default = True
+        default = False
     )

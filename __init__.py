@@ -29,8 +29,21 @@ importlib.reload(Prefs)
 from property_groups import SpritesheetPropertyGroup
 importlib.reload(SpritesheetPropertyGroup)
 
-from ui import Panels
-importlib.reload(Panels)
+# UI panels
+from ui import AnimationsPanel
+importlib.reload(AnimationsPanel)
+from ui import FilePathsPanel
+importlib.reload(FilePathsPanel)
+from ui import MaterialsPanel
+importlib.reload(MaterialsPanel)
+from ui import RenderPropertiesPanel
+importlib.reload(RenderPropertiesPanel)
+from ui import ReportingPanel
+importlib.reload(ReportingPanel)
+from ui import ScenePropertiesPanel
+importlib.reload(ScenePropertiesPanel)
+
+# Other UI
 from ui import PropertyList
 importlib.reload(PropertyList)
 
@@ -48,6 +61,8 @@ from util import StringUtil
 importlib.reload(StringUtil)
 from util import TerminalOutput
 importlib.reload(TerminalOutput)
+from util import UIUtil
+importlib.reload(UIUtil)
 
 from custom_operators import Misc
 importlib.reload(Misc)
@@ -135,12 +150,12 @@ classes = [
     spritesheetRenderModal.SpritesheetRenderModalOperator,
 
     # UI
-    Panels.ScenePropertiesPanel,
-    Panels.RenderPropertiesPanel,
-    Panels.AnimationsPanel,
-    Panels.MaterialsPanel,
-    Panels.FilePathsPanel,
-    Panels.ReportingPanel
+    ScenePropertiesPanel.ScenePropertiesPanel,
+    RenderPropertiesPanel.RenderPropertiesPanel,
+    AnimationsPanel.AnimationsPanel,
+    MaterialsPanel.MaterialsPanel,
+    FilePathsPanel.FilePathsPanel,
+    ReportingPanel.ReportingPanel
 ]
 
 def register():
