@@ -48,7 +48,6 @@ class MiscOperator(bpy.types.Operator):
         if reportingProps.systemType == "unchecked":
             reportingProps.systemType = FileSystemUtil.getSystemType()
 
-        subprocess.Popen('explorer "{}"'.format(self.directory))
         return {"FINISHED"} if FileSystemUtil.openFileExplorer(self.directory) else {"CANCELLED"}
 
     def _makeRenderCameraOrtho(self, context):
