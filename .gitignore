@@ -142,3 +142,6 @@ dmypy.json
 
 # Releases directory is just copies of the code base at the given release tag
 Releases
+
+# Preferences file created by local testing
+preferences/__prefs.json

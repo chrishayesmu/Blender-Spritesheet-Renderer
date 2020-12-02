@@ -9,6 +9,7 @@ class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     """UI Panel for 2D Spritesheet Renderer"""
     bl_idname = "SPRITESHEET_PT_sceneproperties"
     bl_label = "Scene Properties"
+    bl_options = set() # override parent's DEFAULT_CLOSED
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup

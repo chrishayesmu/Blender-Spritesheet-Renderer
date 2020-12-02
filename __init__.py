@@ -147,8 +147,9 @@ classes = [
     SpritesheetPropertyGroup.ReportingPropertyGroup,
     PropertyList.UI_UL_AnimationSelectionPropertyList,
     PropertyList.UI_UL_MaterialSelectionPropertyList,
-    Prefs.SpritesheetAddonPreferences,
     SpritesheetPropertyGroup.SpritesheetPropertyGroup,
+
+    Prefs.SpritesheetAddonPreferences,
 
     # Operators
     ShowAddonPrefsOperator,
@@ -158,6 +159,7 @@ classes = [
     RenderSpritesheet.RenderSpritesheetOperator,
 
     # UI
+    BaseAddonPanel.DATA_PT_AddonPanel,
     ScenePropertiesPanel.ScenePropertiesPanel,
     RenderPropertiesPanel.RenderPropertiesPanel,
     AnimationsPanel.AnimationsPanel,
@@ -166,8 +168,16 @@ classes = [
     ReportingPanel.ReportingPanel
 ]
 
+timers = []
+
 def register():
     for cls in classes:
+        # bpy.utils.register_class will call a "register" method before registration if it exists,
+        # but it does some validations first that prevent use cases we need in ui.BaseAddonPanel
+        preregister = getattr(cls, "preregister", None)
+        if callable(preregister):
+            preregister()
+
         bpy.utils.register_class(cls)
     
     bpy.types.Scene.SpritesheetPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.SpritesheetPropertyGroup)
@@ -178,16 +188,27 @@ def register():
     bpy.app.handlers.load_post.append(populateMaterialSelections)
     bpy.app.handlers.load_post.append(resetReportingProps)
     
+    # Since we're using curried functions here, we need to store references to them to unregister later
     bpy.app.timers.register(findImageMagickExe, first_interval = .1)
-    bpy.app.timers.register(functools.partial(populateAnimationSelections, None), persistent = True)
-    bpy.app.timers.register(functools.partial(populateMaterialSelections, None), persistent = True)
-    bpy.app.timers.register(functools.partial(resetReportingProps, None), first_interval = .1)
+    timers.append(findImageMagickExe)
+
+    populateAnimationSelectionsPartial = functools.partial(populateAnimationSelections, None)
+    bpy.app.timers.register(populateAnimationSelectionsPartial, persistent = True)
+    timers.append(populateAnimationSelectionsPartial)
+
+    populateMaterialSelectionsPartial = functools.partial(populateMaterialSelections, None)
+    bpy.app.timers.register(populateMaterialSelectionsPartial, persistent = True)
+    timers.append(populateMaterialSelectionsPartial)
+
+    resetReportingPropsPartial = functools.partial(resetReportingProps, None)
+    bpy.app.timers.register(resetReportingPropsPartial, persistent = True)
+    timers.append(resetReportingPropsPartial)
 
 def unregister():
-    if bpy.app.timers.is_registered(findImageMagickExe): bpy.app.timers.unregister(findImageMagickExe)
-    if bpy.app.timers.is_registered(populateMaterialSelections): bpy.app.timers.unregister(populateMaterialSelections)
-    if bpy.app.timers.is_registered(populateAnimationSelections): bpy.app.timers.unregister(populateAnimationSelections)
-    if bpy.app.timers.is_registered(resetReportingProps): bpy.app.timers.unregister(resetReportingProps)
+    for timer in timers:
+        if bpy.app.timers.is_registered(timer):
+            bpy.app.timers.unregister(timer)
+
     del bpy.types.Scene.ReportingPropertyGroup
     del bpy.types.Scene.SpritesheetPropertyGroup
     

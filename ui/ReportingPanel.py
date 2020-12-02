@@ -10,6 +10,7 @@ class ReportingPanel(BaseAddonPanel, bpy.types.Panel):
     """UI Panel for render properties"""
     bl_idname = "SPRITESHEET_PT_reporting"
     bl_label = "Job Output"
+    bl_options = set() # override parent's DEFAULT_CLOSED
 
     def draw(self, context):
         reportingProps = context.scene.ReportingPropertyGroup
