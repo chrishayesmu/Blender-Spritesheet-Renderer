@@ -3,15 +3,12 @@ import textwrap
 
 from custom_operators import spritesheetRenderModal as Render
 from util import UIUtil
+from ui.BaseAddonPanel import BaseAddonPanel
 
-
-class ScenePropertiesPanel(bpy.types.Panel):
+class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     """UI Panel for 2D Spritesheet Renderer"""
     bl_idname = "SPRITESHEET_PT_sceneproperties"
     bl_label = "Scene Properties"
-    bl_category = "Spritesheet"
-    bl_region_type = "UI"
-    bl_space_type = "VIEW_3D"
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup

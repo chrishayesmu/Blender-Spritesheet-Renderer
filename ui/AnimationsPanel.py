@@ -1,12 +1,11 @@
 import bpy
 
-class AnimationsPanel(bpy.types.Panel):
+from ui.BaseAddonPanel import BaseAddonPanel
+
+class AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
     """UI Panel for animations"""
     bl_idname = "SPRITESHEET_PT_animations"
     bl_label = "Animation Data"
-    bl_category = "Spritesheet"
-    bl_region_type = "UI"
-    bl_space_type = "VIEW_3D"
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup

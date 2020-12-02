@@ -30,6 +30,8 @@ from property_groups import SpritesheetPropertyGroup
 importlib.reload(SpritesheetPropertyGroup)
 
 # UI panels
+from ui import BaseAddonPanel
+importlib.reload(BaseAddonPanel)
 from ui import AnimationsPanel
 importlib.reload(AnimationsPanel)
 from ui import FilePathsPanel

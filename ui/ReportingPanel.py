@@ -4,14 +4,12 @@ import math
 from util import FileSystemUtil
 from util import StringUtil
 from util import UIUtil
+from ui.BaseAddonPanel import BaseAddonPanel
 
-class ReportingPanel(bpy.types.Panel):
+class ReportingPanel(BaseAddonPanel, bpy.types.Panel):
     """UI Panel for render properties"""
     bl_idname = "SPRITESHEET_PT_reporting"
     bl_label = "Job Output"
-    bl_category = "Spritesheet"
-    bl_region_type = "UI"
-    bl_space_type = "VIEW_3D"
 
     def draw(self, context):
         reportingProps = context.scene.ReportingPropertyGroup

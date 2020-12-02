@@ -1,12 +1,11 @@
 import bpy
 
-class RenderPropertiesPanel(bpy.types.Panel):
+from ui.BaseAddonPanel import BaseAddonPanel
+
+class RenderPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     """UI Panel for render properties"""
     bl_idname = "SPRITESHEET_PT_renderproperties"
     bl_label = "Render Properties"
-    bl_category = "Spritesheet"
-    bl_region_type = "UI"
-    bl_space_type = "VIEW_3D"
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
