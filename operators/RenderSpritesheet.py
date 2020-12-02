@@ -41,17 +41,17 @@ class RenderSpritesheetOperator(bpy.types.Operator):
             elif not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
                 reason = "ImageMagick path is not set in Addon Preferences."
             elif props.useAnimations and not props.targetObject.animation_data:
-                reason = "'Animate During Render' is enabled, but Target Object has no animation data."
+                reason = "'Control Animations' is enabled, but Target Object has no animation data."
             elif props.useAnimations and len(enabledActionSelections) == 0:
-                reason = "'Animate During Render' is enabled, but no animations have been selected for use."
+                reason = "'Control Animations' is enabled, but no animations have been selected for use."
             elif props.separateFilesPerAnimation and not props.useAnimations:
-                reason = "'Separate Files Per Animation' is enabled, but 'Animate During Render' is not."
+                reason = "'Separate Files Per Animation' is enabled, but 'Control Animations' is not."
             elif props.separateFilesPerRotation and not props.rotateObject:
                 reason = "'Separate Files Per Rotation' is enabled, but 'Rotate Object' is not."
             elif props.useMaterials and len(props.targetObject.data.materials) != 1:
-                reason = "If 'Render Multiple Materials' is enabled, Target Object must have exactly 1 material slot."
+                reason = "If 'Control Materials' is enabled, Target Object must have exactly 1 material slot."
             elif props.useMaterials and len(enabledMaterialSelections) == 0:
-                reason = "'Render Multiple Materials' is enabled, but no materials have been selected for use."
+                reason = "'Control Materials' is enabled, but no materials have been selected for use."
             elif props.controlCamera and props.renderCamera and props.renderCamera.data.type != "ORTHO":
                 reason = "'Control Render Camera' is currently only supported for orthographic cameras."
 
