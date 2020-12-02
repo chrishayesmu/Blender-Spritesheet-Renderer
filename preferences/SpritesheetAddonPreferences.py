@@ -15,4 +15,4 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
         row.prop(self, "imageMagickPath")
 
         row = self.layout.row()
-        row.operator("spritesheet._misc", text = "Locate Automatically").action = "locateImageMagick"
+        row.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")

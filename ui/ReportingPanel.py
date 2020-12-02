@@ -52,9 +52,7 @@ class ReportingPanel(BaseAddonPanel, bpy.types.Panel):
                         row.label(text = "Output is at {}".format(reportingProps.outputDirectory))
                     else:
                         row = self.layout.row()
-                        op = row.operator("spritesheet._misc", text = "Open Last Job Output")
-                        op.action = "openDir"
-                        op.directory = reportingProps.outputDirectory
+                        row.operator("spritesheet.open_directory", text = "Open Last Job Output").directory = reportingProps.outputDirectory
 
                 # Don't show error message if a job is still running, it would be misleading
                 if reportingProps.lastErrorMessage:

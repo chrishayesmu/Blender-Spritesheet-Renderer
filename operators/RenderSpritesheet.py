@@ -14,7 +14,7 @@ from util.TerminalOutput import TerminalWriter
 from util.SceneSnapshot import SceneSnapshot
 from util import StringUtil
 
-class SpritesheetRenderModalOperator(bpy.types.Operator):
+class RenderSpritesheetOperator(bpy.types.Operator):
     """Operator for executing spritesheet rendering"""
     bl_idname = "spritesheet.render"
     bl_label = "Render Spritesheet"
@@ -55,11 +55,11 @@ class SpritesheetRenderModalOperator(bpy.types.Operator):
             elif props.controlCamera and props.renderCamera and props.renderCamera.data.type != "ORTHO":
                 reason = "'Control Render Camera' is currently only supported for orthographic cameras."
 
-            SpritesheetRenderModalOperator.renderDisabledReason = reason
+            RenderSpritesheetOperator.renderDisabledReason = reason
             
             return not reason
         except Exception as e:
-            print("Error occurred in SpritesheetRenderModalOperator.poll")
+            print("Error occurred in RenderSpritesheetOperator.poll")
             print(e)
             return False
 

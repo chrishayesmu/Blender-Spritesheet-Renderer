@@ -1,7 +1,7 @@
 import bpy
 import textwrap
 
-from custom_operators import spritesheetRenderModal as Render
+from operators.RenderSpritesheet import RenderSpritesheetOperator
 from util import UIUtil
 from ui.BaseAddonPanel import BaseAddonPanel
 
@@ -22,7 +22,7 @@ class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
         row = self.layout.row()
         row.operator("spritesheet.render", text = "Start Render")
 
-        if Render.SpritesheetRenderModalOperator.renderDisabledReason:
+        if RenderSpritesheetOperator.renderDisabledReason:
             row = self.layout.row()
             box = row.box()
 
@@ -36,13 +36,13 @@ class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
 
             col = row.column() # text column
 
-            wrappedMessageLines = UIUtil.wrapTextInRegion(context, Render.SpritesheetRenderModalOperator.renderDisabledReason)
+            wrappedMessageLines = UIUtil.wrapTextInRegion(context, RenderSpritesheetOperator.renderDisabledReason)
             for line in wrappedMessageLines:
                 row = col.row()
                 row.label(text = line)
 
             # Hacky: check for keywords in the error string to expose some functionality
-            reasonLower = Render.SpritesheetRenderModalOperator.renderDisabledReason.lower()
+            reasonLower = RenderSpritesheetOperator.renderDisabledReason.lower()
             if "addon preferences" in reasonLower:
                 row = box.row()
                 row.operator("spritesheet.showprefs", text = "Show Addon Preferences")
@@ -50,7 +50,7 @@ class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
                 # Right now the only addon preference is ImageMagick location, but let's future proof a little
                 if "imagemagick" in reasonLower:
                     row = box.row()
-                    row.operator("spritesheet._misc", text = "Locate Automatically").action = "locateImageMagick"
+                    row.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")
             elif "orthographic" in reasonLower:
                 row = box.row()
-                row.operator("spritesheet._misc", text = "Make Camera Ortho").action = "makeRenderCameraOrtho"
+                row.operator("spritesheet.configure_render_camera", text = "Make Camera Ortho")

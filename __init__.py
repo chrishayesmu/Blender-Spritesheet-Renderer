@@ -23,6 +23,15 @@ ADDON_DIR = os.path.dirname(os.path.realpath(__file__))
 if not ADDON_DIR in sys.path:
     sys.path.append(ADDON_DIR)
 
+from operators import ConfigureRenderCamera
+importlib.reload(ConfigureRenderCamera)
+from operators import LocateImageMagick
+importlib.reload(LocateImageMagick)
+from operators import OpenDirectory
+importlib.reload(OpenDirectory)
+from operators import RenderSpritesheet
+importlib.reload(RenderSpritesheet)
+
 from preferences import SpritesheetAddonPreferences as Prefs
 importlib.reload(Prefs)
 
@@ -66,11 +75,6 @@ importlib.reload(TerminalOutput)
 from util import UIUtil
 importlib.reload(UIUtil)
 
-from custom_operators import Misc
-importlib.reload(Misc)
-from custom_operators import spritesheetRenderModal
-importlib.reload(spritesheetRenderModal)
-
 # This operator is in the main file so it has the correct module path
 class ShowAddonPrefsOperator(bpy.types.Operator):
     bl_idname = "spritesheet.showprefs"
@@ -84,7 +88,7 @@ class ShowAddonPrefsOperator(bpy.types.Operator):
 def findImageMagickExe():
     # Only look for the exe if the path isn't already set
     if not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
-        bpy.ops.spritesheet._misc("INVOKE_DEFAULT", action = "locateImageMagick")
+        bpy.ops.spritesheet.prefs_locate_imagemagick()
 
 @persistent
 def populateAnimationSelections(_unused):
@@ -148,8 +152,10 @@ classes = [
 
     # Operators
     ShowAddonPrefsOperator,
-    Misc.MiscOperator,
-    spritesheetRenderModal.SpritesheetRenderModalOperator,
+    ConfigureRenderCamera.ConfigureRenderCameraOperator,
+    LocateImageMagick.LocateImageMagickOperator,
+    OpenDirectory.OpenDirectoryOperator,
+    RenderSpritesheet.RenderSpritesheetOperator,
 
     # UI
     ScenePropertiesPanel.ScenePropertiesPanel,
@@ -176,8 +182,6 @@ def register():
     bpy.app.timers.register(functools.partial(populateAnimationSelections, None), persistent = True)
     bpy.app.timers.register(functools.partial(populateMaterialSelections, None), persistent = True)
     bpy.app.timers.register(functools.partial(resetReportingProps, None), first_interval = .1)
-
-
 
 def unregister():
     if bpy.app.timers.is_registered(findImageMagickExe): bpy.app.timers.unregister(findImageMagickExe)
