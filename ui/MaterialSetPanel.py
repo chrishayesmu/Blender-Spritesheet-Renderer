@@ -3,7 +3,7 @@ import bpy
 from ui.BaseAddonPanel import BaseAddonPanel
 from util import UIUtil
 
-class MaterialSetPanel():
+class SPRITESHEET_PT_MaterialSetPanel():
     """UI Panel for material sets.
 
     Since this panel is shown multiple times, it is instantiated as multiple sub-types, and this specific class
@@ -11,7 +11,7 @@ class MaterialSetPanel():
     those will be mixed in at runtime."""
 
     bl_idname = "SPRITESHEET_PT_material_set"
-    bl_label = ""
+    bl_label = "" # hidden; see draw_header
     bl_parent_id = "SPRITESHEET_PT_materials"
 
     index = 0
@@ -24,7 +24,7 @@ class MaterialSetPanel():
 
     @classmethod
     def createSubPanel(cls, index):
-        UIUtil.createPanelType(MaterialSetPanel, index)
+        UIUtil.createPanelType(cls, index)
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup

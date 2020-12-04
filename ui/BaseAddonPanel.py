@@ -12,7 +12,7 @@ class BaseAddonPanel:
         # Despite reloading all the modules, somehow some of this class data is being retained between
         # disabling/re-enabling the addon, so we set everything each time to be safe
         if displayArea == "render_properties":
-            cls.bl_parent_id = "DATA_PT_AddonPanel"
+            cls.bl_parent_id = "SPRITESHEET_PT_AddonPanel"
             cls.bl_space_type = "PROPERTIES"
             cls.bl_region_type = "WINDOW"
             cls.bl_context = "render"
@@ -41,7 +41,7 @@ class BaseAddonPanel:
             if remove_op:
                 col.operator(remove_op, text = "", icon = "REMOVE")
 
-class DATA_PT_AddonPanel(bpy.types.Panel):
+class SPRITESHEET_PT_AddonPanel(bpy.types.Panel):
     """Parent panel that holds all other addon panels when the UI is in the Render Properties area"""
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"

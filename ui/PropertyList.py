@@ -1,18 +1,11 @@
 import bpy
 
-class UI_UL_AnimationSelectionPropertyList(bpy.types.UIList):
+class SPRITESHEET_UL_AnimationSelectionPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         layout.active = item.isSelectedForExport
         layout.prop(item, "isSelectedForExport")
         layout.label(text = item.name)
         layout.label(text = "{} frames".format(item.numFrames))
-
-class UI_UL_MaterialSelectionPropertyList(bpy.types.UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        layout.active = item.isSelectedForExport
-        layout.prop(item, "isSelectedForExport")
-        layout.label(text = item.name)
-        layout.prop(item, "role")
 
 class SPRITESHEET_UL_ObjectMaterialPairPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):

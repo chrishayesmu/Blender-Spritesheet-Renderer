@@ -147,8 +147,6 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
         type = bpy.types.Object
     )
 
-
-
 class ReportingPropertyGroup(bpy.types.PropertyGroup):
     currentFrameNum: bpy.props.IntProperty() # which frame we are currently rendering
 
@@ -162,9 +160,15 @@ class ReportingPropertyGroup(bpy.types.PropertyGroup):
 
     outputDirectory: bpy.props.StringProperty() # the absolute path of the directory of the final spritesheet/JSON output
 
-    suppressTerminalOutput: bpy.props.BoolProperty(
-        name = "Suppress Terminal Output",
-        description = "If true, render jobs will not print anything to the system console (stdout)",
+    outputToTerminal: bpy.props.BoolProperty(
+        name = "Terminal",
+        description = "If true, render jobs will print job progress to the system console (stdout)",
+        default = False
+    )
+
+    outputToUI: bpy.props.BoolProperty(
+        name = "UI",
+        description = "If true, render jobs will print job progress in the Job Management panel",
         default = True
     )
 
@@ -209,9 +213,9 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     ### Materials data
-    activeMaterialSelectionIndex: bpy.props.IntProperty()
+    activeMaterialSelectionIndex: bpy.props.IntProperty() # TODO delete
     
-    materialSelections: bpy.props.CollectionProperty(type = MaterialSelectionPropertyGroup)
+    materialSelections: bpy.props.CollectionProperty(type = MaterialSelectionPropertyGroup) # TODO delete
 
     materialSets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
 
@@ -231,17 +235,11 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     cameraControlMode: bpy.props.EnumProperty(
-        name = "",
+        name = "Control Style",
         description = "How to control the Render Camera",
         items = GetCameraControlModeOptions,
         get = getCameraControlMode,
         set = setCameraControlMode
-    )
-
-    padToPowerOfTwo: bpy.props.BoolProperty(
-        name = "Pad to Power-of-Two",
-        description = "If true, all output images will be padded with transparent pixels to the smallest power-of-two size that can fit the original output",
-        default = True
     )
 
     rotateObject: bpy.props.BoolProperty(
@@ -256,21 +254,14 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         min = 2
     )
 
-    rotationRoot: bpy.props.PointerProperty(
+    rotationRoot: bpy.props.PointerProperty( # TODO delete
         name = "",
         description = "Which object to apply rotation to, useful e.g. with armatures. If left empty, rotations will be applied to Target Object",
         type = bpy.types.Object
     )
-    
-    spriteSize: bpy.props.IntVectorProperty(
-        name = "Sprite Size",
-        description = "How large each individual sprite should be",
-        default = (64, 64),
-        min = 16,
-        size = 2
-    )
 
     ### Scene properties
+    # TODO restrict this to camera objects, using the camera's name to look up the object
     renderCamera: bpy.props.PointerProperty(
         name = "Render Camera",
         description = "The camera to use for rendering; defaults to the scene's camera if unset",
@@ -295,6 +286,12 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     ### Output file properties
+    padToPowerOfTwo: bpy.props.BoolProperty(
+        name = "Pad to Power-of-Two",
+        description = "If true, all output images will be padded with transparent pixels to the smallest power-of-two size that can fit the original output",
+        default = True
+    )
+
     separateFilesPerAnimation: bpy.props.BoolProperty(
         name = "Separate Files Per Animation",
         description = "If 'Control Animations' is enabled, this will generate one output file per animation action. Otherwise, all actions will be combined in a single file",
@@ -311,4 +308,12 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         name = "Separate Files Per Rotation",
         description = "If 'Rotate During Render' is enabled, this will generate one output file per rotation option",
         default = False
+    )
+    
+    spriteSize: bpy.props.IntVectorProperty(
+        name = "Sprite Size",
+        description = "How large each individual sprite should be",
+        default = (128, 128),
+        min = 16,
+        size = 2
     )

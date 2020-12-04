@@ -3,7 +3,7 @@ import bpy
 from preferences import SpritesheetAddonPreferences as Prefs
 from util import ImageMagick
 
-class LocateImageMagickOperator(bpy.types.Operator):
+class SPRITESHEET_OT_LocateImageMagickOperator(bpy.types.Operator):
     bl_idname = "spritesheet.prefs_locate_imagemagick"
     bl_label = "Locate ImageMagick Installation"
 

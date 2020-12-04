@@ -2,7 +2,7 @@ import bpy
 
 from ui.BaseAddonPanel import BaseAddonPanel
 
-class RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
+class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_rotationoptions"
     bl_label = "Control Rotation"
 

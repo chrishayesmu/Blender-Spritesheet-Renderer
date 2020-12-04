@@ -2,8 +2,7 @@ import bpy
 
 from ui.BaseAddonPanel import BaseAddonPanel
 
-class AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
-    """UI Panel for animations"""
+class SPRITESHEET_PT_AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_animations"
     bl_label = "Control Animations"
 
@@ -22,7 +21,7 @@ class AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
 
         row = self.layout.row()
         self.template_list(row,
-                           "UI_UL_AnimationSelectionPropertyList", # Class name
+                           "SPRITESHEET_UL_AnimationSelectionPropertyList", # Class name
                            "", # List ID (blank to generate)
                            props, # List items property source
                            "animationSelections", # List items property name

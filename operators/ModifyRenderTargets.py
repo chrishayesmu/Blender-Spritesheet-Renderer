@@ -1,9 +1,9 @@
 import bpy
 
-from ui.MaterialSetPanel import MaterialSetPanel
+from ui.MaterialSetPanel import SPRITESHEET_PT_MaterialSetPanel as MaterialSetPanel
 from util import UIUtil
 
-class AddMaterialSetOperator(bpy.types.Operator):
+class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_material_set"
     bl_label = "Add Material Set"
 
@@ -21,7 +21,7 @@ class AddMaterialSetOperator(bpy.types.Operator):
 
         return {"FINISHED"}
 
-class RemoveMaterialSetOperator(bpy.types.Operator):
+class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.remove_material_set"
     bl_label = "Remove Material Set"
 
@@ -42,7 +42,7 @@ class RemoveMaterialSetOperator(bpy.types.Operator):
 
         return {"FINISHED"}
 
-class AddRenderTargetOperator(bpy.types.Operator):
+class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_render_target"
     bl_label = "Add Target Object"
 
@@ -56,7 +56,7 @@ class AddRenderTargetOperator(bpy.types.Operator):
 
         return {"FINISHED"}
 
-class RemoveRenderTargetOperator(bpy.types.Operator):
+class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.remove_render_target"
     bl_label = "Remove Target Object"
 

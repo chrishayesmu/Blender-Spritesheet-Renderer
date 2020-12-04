@@ -14,8 +14,8 @@ from util.TerminalOutput import TerminalWriter
 from util.SceneSnapshot import SceneSnapshot
 from util import StringUtil
 
-class RenderSpritesheetOperator(bpy.types.Operator):
-    """Operator for executing spritesheet rendering"""
+class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
+    """Operator for executing spritesheet rendering. This is a modal operator which is expected to run for a long time."""
     bl_idname = "spritesheet.render"
     bl_label = "Render Spritesheet"
     bl_description = "Render target object according to the input settings"
@@ -55,7 +55,7 @@ class RenderSpritesheetOperator(bpy.types.Operator):
             elif props.controlCamera and props.renderCamera and props.renderCamera.data.type != "ORTHO":
                 reason = "'Control Render Camera' is currently only supported for orthographic cameras."
 
-            RenderSpritesheetOperator.renderDisabledReason = reason
+            SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason = reason
             
             return not reason
         except Exception as e:
@@ -73,7 +73,7 @@ class RenderSpritesheetOperator(bpy.types.Operator):
         self._lastJobStartTime = None
         self._nextJobId = 0
         self._startTime = time.clock()
-        self._terminalWriter = TerminalWriter(sys.stdout, reportingProps.suppressTerminalOutput)
+        self._terminalWriter = TerminalWriter(sys.stdout, not reportingProps.outputToTerminal)
         self._sceneSnapshot = SceneSnapshot(context, self._terminalWriter)
 
         # Execute generator a single time to set up all reporting properties and validate config; this won't render anything yet

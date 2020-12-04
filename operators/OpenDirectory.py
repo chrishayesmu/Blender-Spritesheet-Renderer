@@ -2,7 +2,7 @@ import bpy
 
 from util import FileSystemUtil
 
-class OpenDirectoryOperator(bpy.types.Operator):
+class SPRITESHEET_OT_OpenDirectoryOperator(bpy.types.Operator):
     bl_idname = "spritesheet.open_directory"
     bl_label = "Open Directory"
 

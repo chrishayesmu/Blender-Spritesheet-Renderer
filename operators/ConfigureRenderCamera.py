@@ -4,7 +4,7 @@ import subprocess
 
 from preferences import SpritesheetAddonPreferences as Prefs
 
-class ConfigureRenderCameraOperator(bpy.types.Operator):
+class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
     bl_idname = "spritesheet.configure_render_camera"
     bl_label = "Configure Render Camera"
 

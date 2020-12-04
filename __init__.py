@@ -45,20 +45,20 @@ from ui import BaseAddonPanel
 importlib.reload(BaseAddonPanel)
 from ui import AnimationsPanel
 importlib.reload(AnimationsPanel)
-from ui import FilePathsPanel
-importlib.reload(FilePathsPanel)
+from ui import CameraPanel
+importlib.reload(CameraPanel)
+from ui import OutputPropertiesPanel
+importlib.reload(OutputPropertiesPanel)
+from ui import JobManagementPanel
+importlib.reload(JobManagementPanel)
 from ui import MaterialsPanel
 importlib.reload(MaterialsPanel)
 from ui import MaterialSetPanel
 importlib.reload(MaterialSetPanel)
-from ui import RenderPropertiesPanel
-importlib.reload(RenderPropertiesPanel)
-from ui import ReportingPanel
-importlib.reload(ReportingPanel)
 from ui import RotationOptionsPanel
 importlib.reload(RotationOptionsPanel)
-from ui import ScenePropertiesPanel
-importlib.reload(ScenePropertiesPanel)
+from ui import TargetObjectsPanel
+importlib.reload(TargetObjectsPanel)
 
 # Other UI
 from ui import PropertyList
@@ -84,7 +84,7 @@ from util import UIUtil
 importlib.reload(UIUtil)
 
 # This operator is in the main file so it has the correct module path
-class ShowAddonPrefsOperator(bpy.types.Operator):
+class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
     bl_idname = "spritesheet.showprefs"
     bl_label = "Open Addon Preferences"
     bl_description = "Opens the addon preferences for Spritesheet Renderer"
@@ -109,7 +109,7 @@ def initializeCollections(_unused):
     # TODO something is causing material set panels to be lost when first loading Blender
     print(f"There are {len(props.materialSets)} material sets")
     for i in range(0, len(props.materialSets)):
-        MaterialSetPanel.MaterialSetPanel.createSubPanel(i)
+        MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel.createSubPanel(i)
 
     if len(props.targetObjects) == 0:
         bpy.ops.spritesheet.add_render_target()
@@ -176,32 +176,31 @@ classes = [
     Prefs.SpritesheetAddonPreferences,
 
     # Operators
-    ShowAddonPrefsOperator,
-    ConfigureRenderCamera.ConfigureRenderCameraOperator,
-    LocateImageMagick.LocateImageMagickOperator,
-    OpenDirectory.OpenDirectoryOperator,
-    ModifyRenderTargets.AddMaterialSetOperator,
-    ModifyRenderTargets.RemoveMaterialSetOperator,
-    ModifyRenderTargets.AddRenderTargetOperator,
-    ModifyRenderTargets.RemoveRenderTargetOperator,
-    RenderSpritesheet.RenderSpritesheetOperator,
+    SPRITESHEET_OT_ShowAddonPrefsOperator,
+    ConfigureRenderCamera.SPRITESHEET_OT_ConfigureRenderCameraOperator,
+    LocateImageMagick.SPRITESHEET_OT_LocateImageMagickOperator,
+    OpenDirectory.SPRITESHEET_OT_OpenDirectoryOperator,
+    ModifyRenderTargets.SPRITESHEET_OT_AddMaterialSetOperator,
+    ModifyRenderTargets.SPRITESHEET_OT_RemoveMaterialSetOperator,
+    ModifyRenderTargets.SPRITESHEET_OT_AddRenderTargetOperator,
+    ModifyRenderTargets.SPRITESHEET_OT_RemoveRenderTargetOperator,
+    RenderSpritesheet.SPRITESHEET_OT_RenderSpritesheetOperator,
 
     # UI property lists
-    PropertyList.UI_UL_AnimationSelectionPropertyList,
-    PropertyList.UI_UL_MaterialSelectionPropertyList,
+    PropertyList.SPRITESHEET_UL_AnimationSelectionPropertyList,
     PropertyList.SPRITESHEET_UL_ObjectMaterialPairPropertyList,
     PropertyList.SPRITESHEET_UL_RenderTargetPropertyList,
     PropertyList.SPRITESHEET_UL_RotationRootPropertyList,
 
     # UI panels
-    BaseAddonPanel.DATA_PT_AddonPanel,
-    ScenePropertiesPanel.ScenePropertiesPanel,
-    RenderPropertiesPanel.RenderPropertiesPanel,
-    AnimationsPanel.AnimationsPanel,
-    MaterialsPanel.MaterialsPanel,
-    RotationOptionsPanel.RotationOptionsPanel,
-    FilePathsPanel.FilePathsPanel,
-    ReportingPanel.ReportingPanel
+    BaseAddonPanel.SPRITESHEET_PT_AddonPanel,
+    TargetObjectsPanel.SPRITESHEET_PT_TargetObjectsPanel,
+    AnimationsPanel.SPRITESHEET_PT_AnimationsPanel,
+    CameraPanel.SPRITESHEET_PT_CameraPanel,
+    MaterialsPanel.SPRITESHEET_PT_MaterialsPanel,
+    RotationOptionsPanel.SPRITESHEET_PT_RotationOptionsPanel,
+    OutputPropertiesPanel.SPRITESHEET_PT_OutputPropertiesPanel,
+    JobManagementPanel.SPRITESHEET_PT_JobManagementPanel
 ]
 
 timers = []
@@ -214,17 +213,16 @@ def register():
     bpy.types.Scene.ReportingPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.ReportingPropertyGroup)
     
     # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
-    bpy.app.handlers.load_post.append(initializeCollections)
-    bpy.app.handlers.load_post.append(populateAnimationSelections)
-    bpy.app.handlers.load_post.append(populateMaterialSelections)
-    bpy.app.handlers.load_post.append(resetReportingProps)
-    
-    # Since we're using curried functions here, we need to store references to them to unregister later
     startTimer(findImageMagickExe, first_interval = .1)
     startTimer(initializeCollections, make_partial = True, persistent = True)
     startTimer(populateAnimationSelections, make_partial = True, persistent = True)
     startTimer(populateMaterialSelections, make_partial = True, persistent = True)
     startTimer(resetReportingProps, make_partial = True, persistent = True)
+
+    bpy.app.handlers.load_post.append(initializeCollections)
+    bpy.app.handlers.load_post.append(populateAnimationSelections)
+    bpy.app.handlers.load_post.append(populateMaterialSelections)
+    bpy.app.handlers.load_post.append(resetReportingProps)
 
 def unregister():
     for timer in timers:
@@ -239,7 +237,7 @@ def unregister():
     del bpy.types.Scene.ReportingPropertyGroup
     del bpy.types.Scene.SpritesheetPropertyGroup
     
-    UIUtil.unregisterSubPanels(MaterialSetPanel.MaterialSetPanel)
+    UIUtil.unregisterSubPanels(MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel)
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
