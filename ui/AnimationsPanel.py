@@ -21,12 +21,11 @@ class AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
         row.prop(props, "outputFrameRate")
 
         row = self.layout.row()
-        row.template_list("UI_UL_AnimationSelectionPropertyList", # Class name
-                        "", # List ID (blank to generate)
-                        props, # List items property source
-                        "animationSelections", # List items property name
-                        props, # List index property source
-                        "activeAnimationSelectionIndex", # List index property name
-                        rows = min(5, len(props.animationSelections)),
-                        maxrows = 5
+        self.template_list(row,
+                           "UI_UL_AnimationSelectionPropertyList", # Class name
+                           "", # List ID (blank to generate)
+                           props, # List items property source
+                           "animationSelections", # List items property name
+                           props, # List index property source
+                           "activeAnimationSelectionIndex" # List index property name
         )

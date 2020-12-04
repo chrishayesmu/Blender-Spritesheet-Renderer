@@ -27,6 +27,8 @@ from operators import ConfigureRenderCamera
 importlib.reload(ConfigureRenderCamera)
 from operators import LocateImageMagick
 importlib.reload(LocateImageMagick)
+from operators import ModifyRenderTargets
+importlib.reload(ModifyRenderTargets)
 from operators import OpenDirectory
 importlib.reload(OpenDirectory)
 from operators import RenderSpritesheet
@@ -47,6 +49,8 @@ from ui import FilePathsPanel
 importlib.reload(FilePathsPanel)
 from ui import MaterialsPanel
 importlib.reload(MaterialsPanel)
+from ui import MaterialSetPanel
+importlib.reload(MaterialSetPanel)
 from ui import RenderPropertiesPanel
 importlib.reload(RenderPropertiesPanel)
 from ui import ReportingPanel
@@ -66,6 +70,8 @@ from util import FileSystemUtil
 importlib.reload(FileSystemUtil)
 from util import ImageMagick
 importlib.reload(ImageMagick)
+from util import Register
+importlib.reload(Register)
 from util import SceneSnapshot
 importlib.reload(SceneSnapshot)
 from util import StringUtil
@@ -91,6 +97,22 @@ def findImageMagickExe():
         bpy.ops.spritesheet.prefs_locate_imagemagick()
 
 @persistent
+def initializeCollections(_unused):
+    """Initializes certain CollectionProperty objects that otherwise would be empty."""
+    props = bpy.context.scene.SpritesheetPropertyGroup
+
+    if len(props.materialSets) == 0:
+        bpy.ops.spritesheet.add_material_set()
+
+    # TODO something is causing material set panels to be lost when first loading Blender
+    print(f"There are {len(props.materialSets)} material sets")
+    for i in range(0, len(props.materialSets)):
+        MaterialSetPanel.MaterialSetPanel.createSubPanel(i)
+
+    if len(props.targetObjects) == 0:
+        bpy.ops.spritesheet.add_render_target()
+
+@persistent
 def populateAnimationSelections(_unused):
     scene = bpy.context.scene
     props = scene.SpritesheetPropertyGroup
@@ -105,8 +127,7 @@ def populateAnimationSelections(_unused):
 
 @persistent
 def populateMaterialSelections(_unused):
-    scene = bpy.context.scene
-    props = scene.SpritesheetPropertyGroup
+    props = bpy.context.scene.SpritesheetPropertyGroup
     props.materialSelections.clear()
 
     # TODO material selections aren't persisting; some selections are lost
@@ -144,9 +165,10 @@ classes = [
     # Property groups
     SpritesheetPropertyGroup.AnimationSelectionPropertyGroup,
     SpritesheetPropertyGroup.MaterialSelectionPropertyGroup,
+    SpritesheetPropertyGroup.ObjectMaterialPairPropertyGroup,
+    SpritesheetPropertyGroup.MaterialSetPropertyGroup,
+    SpritesheetPropertyGroup.RenderTargetPropertyGroup,
     SpritesheetPropertyGroup.ReportingPropertyGroup,
-    PropertyList.UI_UL_AnimationSelectionPropertyList,
-    PropertyList.UI_UL_MaterialSelectionPropertyList,
     SpritesheetPropertyGroup.SpritesheetPropertyGroup,
 
     Prefs.SpritesheetAddonPreferences,
@@ -156,9 +178,19 @@ classes = [
     ConfigureRenderCamera.ConfigureRenderCameraOperator,
     LocateImageMagick.LocateImageMagickOperator,
     OpenDirectory.OpenDirectoryOperator,
+    ModifyRenderTargets.AddMaterialSetOperator,
+    ModifyRenderTargets.RemoveMaterialSetOperator,
+    ModifyRenderTargets.AddRenderTargetOperator,
+    ModifyRenderTargets.RemoveRenderTargetOperator,
     RenderSpritesheet.RenderSpritesheetOperator,
 
-    # UI
+    # UI property lists
+    PropertyList.UI_UL_AnimationSelectionPropertyList,
+    PropertyList.UI_UL_MaterialSelectionPropertyList,
+    PropertyList.SPRITESHEET_UL_ObjectMaterialPairPropertyList,
+    PropertyList.SPRITESHEET_UL_RenderTargetPropertyList,
+
+    # UI panels
     BaseAddonPanel.DATA_PT_AddonPanel,
     ScenePropertiesPanel.ScenePropertiesPanel,
     RenderPropertiesPanel.RenderPropertiesPanel,
@@ -172,48 +204,48 @@ timers = []
 
 def register():
     for cls in classes:
-        # bpy.utils.register_class will call a "register" method before registration if it exists,
-        # but it does some validations first that prevent use cases we need in ui.BaseAddonPanel
-        preregister = getattr(cls, "preregister", None)
-        if callable(preregister):
-            preregister()
-
-        bpy.utils.register_class(cls)
+        Register.register_class(cls)
     
     bpy.types.Scene.SpritesheetPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.SpritesheetPropertyGroup)
     bpy.types.Scene.ReportingPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.ReportingPropertyGroup)
     
     # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
+    bpy.app.handlers.load_post.append(initializeCollections)
     bpy.app.handlers.load_post.append(populateAnimationSelections)
     bpy.app.handlers.load_post.append(populateMaterialSelections)
     bpy.app.handlers.load_post.append(resetReportingProps)
     
     # Since we're using curried functions here, we need to store references to them to unregister later
-    bpy.app.timers.register(findImageMagickExe, first_interval = .1)
-    timers.append(findImageMagickExe)
-
-    populateAnimationSelectionsPartial = functools.partial(populateAnimationSelections, None)
-    bpy.app.timers.register(populateAnimationSelectionsPartial, persistent = True)
-    timers.append(populateAnimationSelectionsPartial)
-
-    populateMaterialSelectionsPartial = functools.partial(populateMaterialSelections, None)
-    bpy.app.timers.register(populateMaterialSelectionsPartial, persistent = True)
-    timers.append(populateMaterialSelectionsPartial)
-
-    resetReportingPropsPartial = functools.partial(resetReportingProps, None)
-    bpy.app.timers.register(resetReportingPropsPartial, persistent = True)
-    timers.append(resetReportingPropsPartial)
+    startTimer(findImageMagickExe, first_interval = .1)
+    startTimer(initializeCollections, make_partial = True, persistent = True)
+    startTimer(populateAnimationSelections, make_partial = True, persistent = True)
+    startTimer(populateMaterialSelections, make_partial = True, persistent = True)
+    startTimer(resetReportingProps, make_partial = True, persistent = True)
 
 def unregister():
     for timer in timers:
         if bpy.app.timers.is_registered(timer):
             bpy.app.timers.unregister(timer)
 
+    bpy.app.handlers.load_post.remove(initializeCollections)
+    bpy.app.handlers.load_post.remove(populateAnimationSelections)
+    bpy.app.handlers.load_post.remove(populateMaterialSelections)
+    bpy.app.handlers.load_post.remove(resetReportingProps)
+
     del bpy.types.Scene.ReportingPropertyGroup
     del bpy.types.Scene.SpritesheetPropertyGroup
     
+    UIUtil.unregisterSubPanels(MaterialSetPanel.MaterialSetPanel)
+
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+def startTimer(func, make_partial = False, first_interval = 0, persistent = False):
+    if make_partial:
+        func = functools.partial(func, None)
+
+    bpy.app.timers.register(func, first_interval = first_interval, persistent = persistent)
+    timers.append(func)
 
 # This allows you to run the script directly from Blender's Text editor
 # to test the add-on without having to install it.

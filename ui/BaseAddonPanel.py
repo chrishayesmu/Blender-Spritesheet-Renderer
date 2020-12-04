@@ -26,6 +26,21 @@ class BaseAddonPanel:
         else:
             raise ValueError("Unrecognized displayArea value: {}".format(displayArea))
 
+    def template_list(self, layout, listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, add_op = None, remove_op = None):
+        listObj = getattr(dataptr, propname)
+
+        # Mostly passthrough but with a couple of standardized params
+        layout.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, rows = min(5, max(1, len(listObj))), maxrows = 5)
+
+        if add_op or remove_op:
+            col = layout.column(align = True)
+
+            if add_op:
+                col.operator(add_op, text = "", icon = "ADD")
+
+            if remove_op:
+                col.operator(remove_op, text = "", icon = "REMOVE")
+
 class DATA_PT_AddonPanel(bpy.types.Panel):
     """Parent panel that holds all other addon panels when the UI is in the Render Properties area"""
     bl_space_type = "PROPERTIES"

@@ -36,7 +36,6 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
         update = _updater()
     )
 
-    # TODO: see about reloading the addon if this changes
     displayArea: bpy.props.EnumProperty(
         name = "Addon Display Area",
         description = "Choose where the addon's UI should be displayed",

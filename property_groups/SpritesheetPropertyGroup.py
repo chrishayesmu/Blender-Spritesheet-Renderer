@@ -41,6 +41,45 @@ class MaterialSelectionPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
+def GetMaterialNameOptions(self, context):
+    items = []
+
+    for material in bpy.data.materials:
+        items.append( (material.name, material.name, "") )
+
+    return items
+
+class ObjectMaterialPairPropertyGroup(bpy.types.PropertyGroup):
+    materialName: bpy.props.EnumProperty(
+        name = "Material Name",
+        description = "TBD",
+        items = GetMaterialNameOptions
+        # TODO add change handler to set role based on material name (and preference to disable this)
+    )
+
+class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(
+        name = "Set Name",
+        description = "(Optional) A user-friendly name you can supply to help you keep track of your material sets"
+    )
+
+    role: bpy.props.EnumProperty(
+        name = "Role",
+        description = "How this material set is used. Does not impact the rendered images, but is included in output metadata for import to other programs",
+        items = [
+            ("albedo", "Albedo/Base Color", "This material provides the albedo, or base color, of the object."),
+            ("mask_unity", "Mask (Unity)", "This material is a Unity mask texture, where the red channel is metallic, green is occlusion, blue is the detail mask, and alpha is smoothness."),
+            ("normal_unity", "Normal (Unity)", "This material is a normal map for use in Unity (tangent space, Y+)."),
+            ("other", "Other", "Any use not fitting the options above.")
+        ]
+    )
+
+    objectMaterialPairs: bpy.props.CollectionProperty(type = ObjectMaterialPairPropertyGroup)
+
+    selectedObjectMaterialPair: bpy.props.IntProperty(
+        get = lambda self: -1 # dummy getter and no setter means items in the list can't be selected
+    )
+
 def GetCameraControlModeOptions(self, context):
     props = context.scene.SpritesheetPropertyGroup
 
@@ -74,6 +113,41 @@ def getCameraControlMode(self):
 
 def setCameraControlMode(self, value):
     self["cameraControlMode"] = value
+
+class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
+
+    def onTargetObjectUpdated(self, context):
+        # When selecting an object for the first time, auto-detect its associated material and assign it
+        # in all of the material sets, for convenience
+        if self.previousObject is None and self.object is not None and hasattr(self.object.data, "materials") and len(self.object.data.materials) > 0:
+            props = context.scene.SpritesheetPropertyGroup
+            
+            # Figure out which index this object is, because it's the same in the material sets
+            index = list(props.targetObjects).index(self)
+
+            for materialSet in props.materialSets:
+                materialSet.objectMaterialPairs[index].materialName = self.object.data.materials[0].name
+
+        self.previousObject = self.object
+
+    object: bpy.props.PointerProperty(
+        name = "Render Target",
+        description = "An object to be rendered into the spritesheet",
+        type = bpy.types.Object,
+        update = onTargetObjectUpdated
+    )
+
+    previousObject: bpy.props.PointerProperty(
+        type = bpy.types.Object
+    )
+
+    rotationRoot: bpy.props.PointerProperty(
+        name = "Rotation Root",
+        description = "If 'Rotate Object' is set, this object will be rotated instead of the Render Target. This is useful for parent objects or armatures",
+        type = bpy.types.Object
+    )
+
+
 
 class ReportingPropertyGroup(bpy.types.PropertyGroup):
     currentFrameNum: bpy.props.IntProperty() # which frame we are currently rendering
@@ -139,6 +213,10 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     
     materialSelections: bpy.props.CollectionProperty(type = MaterialSelectionPropertyGroup)
 
+    materialSets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
+
+    selectedMaterialSetIndex: bpy.props.IntProperty()
+
     useMaterials: bpy.props.BoolProperty(
         name = "Render Multiple Materials",
         description = "If true, the target object will be rendered once for each selected material",
@@ -167,8 +245,8 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     rotateObject: bpy.props.BoolProperty(
-        name = "Rotate Object",
-        description = "Whether to rotate the object. If true, there will be multiple output spritesheets, one for each rotation"
+        name = "Rotate Objects",
+        description = "Whether to rotate the target objects. All objects will be rotated simultaneously, but you may choose an object to rotate each around (such as a parent or armature)"
     )
     
     rotationNumber: bpy.props.IntProperty(
@@ -205,16 +283,23 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         type = bpy.types.Object
     )
 
+    targetObjects: bpy.props.CollectionProperty(
+        name = "Render Targets",
+        type = RenderTargetPropertyGroup
+    )
+
+    selectedTargetObjectIndex: bpy.props.IntProperty()
+
     ### Output file properties
     separateFilesPerAnimation: bpy.props.BoolProperty(
         name = "Separate Files Per Animation",
-        description = "If 'Animate During Render' is enabled, this will generate one output file per animation action. Otherwise, all actions will be combined in a single file",
+        description = "If 'Control Animations' is enabled, this will generate one output file per animation action. Otherwise, all actions will be combined in a single file",
         default = False
     )
 
     separateFilesPerMaterial: bpy.props.BoolProperty(
-        name = "Separate Files Per Material",
-        description = "If 'Render Multiple Materials' is enabled, this will generate one output file per material. This cannot be disabled",
+        name = "Separate Files Per Material Set",
+        description = "If 'Control Materials' is enabled, this will generate one output file per material set. This cannot be disabled",
         default = True
     )
 

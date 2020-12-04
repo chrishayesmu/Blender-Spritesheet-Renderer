@@ -2,8 +2,8 @@ import bpy
 import textwrap
 
 from operators.RenderSpritesheet import RenderSpritesheetOperator
-from util import UIUtil
 from ui.BaseAddonPanel import BaseAddonPanel
+from util import UIUtil
 
 class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     """UI Panel for 2D Spritesheet Renderer"""
@@ -13,9 +13,22 @@ class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        
+
         row = self.layout.row()
-        row.prop_search(props, "targetObject", bpy.data, "objects")
+        row.label(text = "Objects to Render")
+        #row.prop_search(props, "targetObject", bpy.data, "objects")
+
+        row = self.layout.row()
+        self.template_list(row,
+                          "SPRITESHEET_UL_RenderTargetPropertyList", # Class name
+                          "spritesheet_ScenePropertiesPanel_target_objects_list", # List ID (blank to generate)
+                          props, # List items property source
+                          "targetObjects", # List items property name
+                          props, # List index property source
+                          "selectedTargetObjectIndex", # List index property name,
+                          add_op = "spritesheet.add_render_target",
+                          remove_op = "spritesheet.remove_render_target"
+        )
 
         row = self.layout.row()
         row.prop_search(props, "renderCamera", bpy.data, "objects")
@@ -48,7 +61,6 @@ class ScenePropertiesPanel(BaseAddonPanel, bpy.types.Panel):
                 row = box.row()
                 row.operator("spritesheet.showprefs", text = "Show Addon Preferences")
 
-                # Right now the only addon preference is ImageMagick location, but let's future proof a little
                 if "imagemagick" in reasonLower:
                     row = box.row()
                     row.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")
