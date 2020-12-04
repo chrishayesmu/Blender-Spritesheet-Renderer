@@ -1,5 +1,4 @@
 import bpy
-import textwrap
 
 from operators.RenderSpritesheet import RenderSpritesheetOperator
 from ui.BaseAddonPanel import BaseAddonPanel

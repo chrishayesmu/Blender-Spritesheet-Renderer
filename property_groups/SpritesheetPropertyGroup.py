@@ -121,7 +121,7 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
         # in all of the material sets, for convenience
         if self.previousObject is None and self.object is not None and hasattr(self.object.data, "materials") and len(self.object.data.materials) > 0:
             props = context.scene.SpritesheetPropertyGroup
-            
+
             # Figure out which index this object is, because it's the same in the material sets
             index = list(props.targetObjects).index(self)
 
@@ -143,7 +143,7 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
     rotationRoot: bpy.props.PointerProperty(
         name = "Rotation Root",
-        description = "If 'Rotate Object' is set, this object will be rotated instead of the Render Target. This is useful for parent objects or armatures",
+        description = "If 'Rotate Object' is set, this object will be rotated instead of the Render Target. This is useful for parent objects or armatures. If unset, the Render Target is rotated",
         type = bpy.types.Object
     )
 
@@ -289,6 +289,10 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     selectedTargetObjectIndex: bpy.props.IntProperty()
+
+    selectedRotationRootIndex: bpy.props.IntProperty(
+        get = lambda self: -1
+    )
 
     ### Output file properties
     separateFilesPerAnimation: bpy.props.BoolProperty(

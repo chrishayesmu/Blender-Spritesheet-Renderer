@@ -55,6 +55,8 @@ from ui import RenderPropertiesPanel
 importlib.reload(RenderPropertiesPanel)
 from ui import ReportingPanel
 importlib.reload(ReportingPanel)
+from ui import RotationOptionsPanel
+importlib.reload(RotationOptionsPanel)
 from ui import ScenePropertiesPanel
 importlib.reload(ScenePropertiesPanel)
 
@@ -189,6 +191,7 @@ classes = [
     PropertyList.UI_UL_MaterialSelectionPropertyList,
     PropertyList.SPRITESHEET_UL_ObjectMaterialPairPropertyList,
     PropertyList.SPRITESHEET_UL_RenderTargetPropertyList,
+    PropertyList.SPRITESHEET_UL_RotationRootPropertyList,
 
     # UI panels
     BaseAddonPanel.DATA_PT_AddonPanel,
@@ -196,6 +199,7 @@ classes = [
     RenderPropertiesPanel.RenderPropertiesPanel,
     AnimationsPanel.AnimationsPanel,
     MaterialsPanel.MaterialsPanel,
+    RotationOptionsPanel.RotationOptionsPanel,
     FilePathsPanel.FilePathsPanel,
     ReportingPanel.ReportingPanel
 ]

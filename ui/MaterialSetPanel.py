@@ -5,7 +5,7 @@ from util import UIUtil
 
 class MaterialSetPanel():
     """UI Panel for material sets.
-    
+
     Since this panel is shown multiple times, it is instantiated as multiple sub-types, and this specific class
     is never actually instantiated. Hence, it does not need to extend any classes like the other panels do, since
     those will be mixed in at runtime."""

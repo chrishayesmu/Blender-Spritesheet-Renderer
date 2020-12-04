@@ -10,26 +10,16 @@ class RenderPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
         
+        # TODO move to file output panel
         row = self.layout.row()
         row.prop(props, "spriteSize")
 
         row = self.layout.row()
         row.prop(props, "padToPowerOfTwo")
 
+        # TODO rename this for its own camera-specific panel
         row = self.layout.row()
         row.prop(props, "controlCamera")
 
         if props.controlCamera:
             row.prop(props, "cameraControlMode")
-
-        row = self.layout.row()
-        split = row.split(factor = 0.3)
-        col1, col2 = (split.column(), split.column())
-        col1.prop(props, "rotateObject")
-        
-        if props.rotateObject:
-            col2.prop(props, "rotationNumber")
-
-            split = col2.split(factor = 0.3)
-            split.label(text = "Rotation Root")
-            split.prop_search(props, "rotationRoot", bpy.data, "objects")
