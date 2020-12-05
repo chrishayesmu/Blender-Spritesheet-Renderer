@@ -1,5 +1,50 @@
 import bpy
 
+def _get_camera_control_mode_options(self, context):
+    #pylint: disable=unused-argument
+    props = context.scene.SpritesheetPropertyGroup
+
+    items = [
+        ("move_once", "Fit All Frames", "The camera will be adjusted once before any rendering is done, so that the entire spritesheet is rendered from the same camera perspective.", 0),
+        ("move_each_frame", "Fit Each Frame", "The camera will be adjusted before every render frame to fit the Target Object. Note that this will prevent the appearance of movement in the spritesheet.", 1)
+    ]
+
+    if props.useAnimations:
+        items.append(("move_each_animation", "Fit Each Animation", "The camera will be adjusted at the start of each animation, so that the entire animation is rendered without subsequently moving the camera.", 2))
+
+    if props.rotateObject:
+        items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time the Target Object is rotated, so that all frames for the rotation (including animations if enabled) " +
+                                                                 "are rendered without subsequently moving the camera.", 3))
+
+    return items
+
+def _get_camera_control_mode(self):
+    val = self.get("cameraControlMode")
+
+    if val is None:
+        val = 0
+    else:
+        # Make sure the chosen value is still an option based on latest configuration
+        items = _get_camera_control_mode_options(self, bpy.context)
+        is_valid = any(item[3] == val for item in items)
+
+        if not is_valid:
+            val = 0 # default to moving once
+
+    return val
+
+def _set_camera_control_mode(self, value):
+    self["cameraControlMode"] = value
+
+def get_material_name_options(self, context):
+    #pylint: disable=unused-argument
+    items = []
+
+    for material in bpy.data.materials:
+        items.append( (material.name, material.name, "") )
+
+    return items
+
 class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name = "Action Name",
@@ -39,15 +84,6 @@ class MaterialSelectionPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
-def get_material_name_options(self, context):
-    #pylint: disable=unused-argument
-    items = []
-
-    for material in bpy.data.materials:
-        items.append( (material.name, material.name, "") )
-
-    return items
-
 class ObjectMaterialPairPropertyGroup(bpy.types.PropertyGroup):
     materialName: bpy.props.EnumProperty(
         name = "Material Name",
@@ -77,42 +113,6 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
     selectedObjectMaterialPair: bpy.props.IntProperty(
         get = lambda self: -1 # dummy getter and no setter means items in the list can't be selected
     )
-
-def _get_camera_control_mode_options(self, context):
-    #pylint: disable=unused-argument
-    props = context.scene.SpritesheetPropertyGroup
-
-    items = [
-        ("move_once", "Fit All Frames", "The camera will be adjusted once before any rendering is done, so that the entire spritesheet is rendered from the same camera perspective.", 0),
-        ("move_each_frame", "Fit Each Frame", "The camera will be adjusted before every render frame to fit the Target Object. Note that this will prevent the appearance of movement in the spritesheet.", 1)
-    ]
-
-    if props.useAnimations:
-        items.append(("move_each_animation", "Fit Each Animation", "The camera will be adjusted at the start of each animation, so that the entire animation is rendered without subsequently moving the camera.", 2))
-
-    if props.rotateObject:
-        items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time the Target Object is rotated, so that all frames for the rotation (including animations if enabled) " +
-                                                                 "are rendered without subsequently moving the camera.", 3))
-
-    return items
-
-def _get_camera_control_mode(self):
-    val = self.get("cameraControlMode")
-
-    if val is None:
-        val = 0
-    else:
-        # Make sure the chosen value is still an option based on latest configuration
-        items = _get_camera_control_mode_options(self, bpy.context)
-        is_valid = any(item[3] == val for item in items)
-
-        if not is_valid:
-            val = 0 # default to moving once
-
-    return val
-
-def _set_camera_control_mode(self, value):
-    self["cameraControlMode"] = value
 
 class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 

@@ -37,8 +37,8 @@ importlib.reload(RenderSpritesheet)
 from preferences import SpritesheetAddonPreferences as Prefs
 importlib.reload(Prefs)
 
-from property_groups import SpritesheetPropertyGroup
-importlib.reload(SpritesheetPropertyGroup)
+import property_groups
+importlib.reload(property_groups)
 
 import ui_lists
 importlib.reload(ui_lists)
@@ -125,13 +125,13 @@ def reset_reporting_props(_unused):
 
 classes = [
     # Property groups
-    SpritesheetPropertyGroup.AnimationSelectionPropertyGroup,
-    SpritesheetPropertyGroup.MaterialSelectionPropertyGroup,
-    SpritesheetPropertyGroup.ObjectMaterialPairPropertyGroup,
-    SpritesheetPropertyGroup.MaterialSetPropertyGroup,
-    SpritesheetPropertyGroup.RenderTargetPropertyGroup,
-    SpritesheetPropertyGroup.ReportingPropertyGroup,
-    SpritesheetPropertyGroup.SpritesheetPropertyGroup,
+    property_groups.AnimationSelectionPropertyGroup,
+    property_groups.MaterialSelectionPropertyGroup,
+    property_groups.ObjectMaterialPairPropertyGroup,
+    property_groups.MaterialSetPropertyGroup,
+    property_groups.RenderTargetPropertyGroup,
+    property_groups.ReportingPropertyGroup,
+    property_groups.SpritesheetPropertyGroup,
 
     Prefs.SpritesheetAddonPreferences,
 
@@ -169,8 +169,8 @@ def register():
     for cls in classes:
         Register.register_class(cls)
 
-    bpy.types.Scene.SpritesheetPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.SpritesheetPropertyGroup)
-    bpy.types.Scene.ReportingPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.ReportingPropertyGroup)
+    bpy.types.Scene.SpritesheetPropertyGroup = bpy.props.PointerProperty(type = property_groups.SpritesheetPropertyGroup)
+    bpy.types.Scene.ReportingPropertyGroup = bpy.props.PointerProperty(type = property_groups.ReportingPropertyGroup)
 
     # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
     start_timer(find_image_magick_exe, first_interval = .1)
