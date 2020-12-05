@@ -11,8 +11,15 @@ def register_class(cls, runPreregister = True):
     if runPreregister:
         preregister(cls)
 
-    bpy.utils.register_class(cls)
+    try:
+        bpy.utils.register_class(cls)
+    except Exception as e:
+        pass
 
 def unregister_class(cls):
-    if hasattr(bpy.types, cls.bl_idname):
+    # Blender has trouble with some of our dynamically-created types if unregistering after
+    # opening a different file, so this try/except is just to bypass those situations
+    try:
         bpy.utils.unregister_class(cls)
+    except Exception as e:
+        pass

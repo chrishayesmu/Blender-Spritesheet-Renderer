@@ -106,8 +106,6 @@ def initializeCollections(_unused):
     if len(props.materialSets) == 0:
         bpy.ops.spritesheet.add_material_set()
 
-    # TODO something is causing material set panels to be lost when first loading Blender
-    print(f"There are {len(props.materialSets)} material sets")
     for i in range(0, len(props.materialSets)):
         MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel.createSubPanel(i)
 
@@ -214,7 +212,7 @@ def unregister():
     UIUtil.unregisterSubPanels(MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel)
 
     for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+        Register.unregister_class(cls)
 
 def startTimer(func, make_partial = False, first_interval = 0, persistent = False):
     if make_partial:
