@@ -38,7 +38,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 reason = "Target Object is not set."
             elif not props.renderCamera:
                 reason = "Render Camera is not set."
-            elif not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
+            elif not Prefs.PrefsAccess.image_magick_path:
                 reason = "ImageMagick path is not set in Addon Preferences."
             elif props.useAnimations and not props.targetObject.animation_data:
                 reason = "'Control Animations' is enabled, but Target Object has no animation data."

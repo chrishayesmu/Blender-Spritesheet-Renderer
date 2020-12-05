@@ -1,4 +1,3 @@
-import bpy
 import glob
 import math
 import os
@@ -45,7 +44,7 @@ def pad_image_to_size(image_path, size):
     extent_arg = str(size[0]) + "x" + str(size[1])
 
     args = [
-        bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath,
+        Prefs.PrefsAccess.image_magick_path,
         "convert",
         "-background",
         "none", # added pixels will be transparent
@@ -61,17 +60,17 @@ def pad_image_to_size(image_path, size):
 
     return process_output.returncode == 0
 
-def validate_image_magick_at_path(path):
-    """Checks that ImageMagick is installed at the given path."""
+def validate_image_magick_at_path(path = None):
+    """Checks that ImageMagick is installed at the given path, or the path stored in the addon preferences if no path is provided."""
 
-    if path is None:
-        if not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
+    if not path:
+        if not Prefs.PrefsAccess.image_magick_path:
             return {
                 "stderr": "ImageMagick path is not configured in Addon Preferences",
                 "succeeded": False
             }
 
-    path = bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath
+        path = Prefs.PrefsAccess.image_magick_path
 
     # Just run a basic command to make sure ImageMagick is installed and the path is correct
     process_output = subprocess.run([path, "-version"], stdout = subprocess.PIPE, stderr = subprocess.PIPE, text = True, check = False)
@@ -107,7 +106,7 @@ def _image_magick_args(sprite_size, num_images, temp_dir_path, output_file_path)
     num_pixels_tall = num_rows * sprite_size[1]
 
     args_list = [
-        bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath,
+        Prefs.PrefsAccess.image_magick_path,
         "montage",
         "@" + os.path.basename(in_file_path), # '@' prefix indicates to read input files from a text file; path needs to be relative to cwd
         "-geometry",

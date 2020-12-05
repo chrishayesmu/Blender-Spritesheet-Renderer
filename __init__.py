@@ -95,7 +95,7 @@ class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
 
 def find_image_magick_exe():
     # Only look for the exe if the path isn't already set
-    if not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
+    if not Prefs.PrefsAccess.image_magick_path:
         bpy.ops.spritesheet.prefs_locate_imagemagick()
 
 @persistent

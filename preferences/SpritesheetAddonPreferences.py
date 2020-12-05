@@ -69,3 +69,22 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
 
         row = self.layout.row()
         row.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")
+
+class PrefsAccess():
+    """Convenience class to simplify accessing addon preferences."""
+    #pylint: disable=no-self-use
+
+    @property
+    def display_area(self):
+        return bpy.context.preferences.addons[SpritesheetAddonPreferences.bl_idname].preferences.displayArea
+
+    @property
+    def image_magick_path(self):
+        return bpy.context.preferences.addons[SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath
+
+    @image_magick_path.setter
+    def image_magick_path(self, value):
+        bpy.context.preferences.addons[SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath = value
+
+# Replace class with a singleton instance
+PrefsAccess = PrefsAccess()

@@ -14,7 +14,7 @@ class SPRITESHEET_OT_LocateImageMagickOperator(bpy.types.Operator):
             self.report({"ERROR"}, "Could not locate ImageMagick automatically. You will need to set the path in the add-on preferences manually.")
             return {"CANCELLED"}
 
-        bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath = image_magick_path
+        Prefs.PrefsAccess.image_magick_path = image_magick_path
         self.report({"INFO"}, "Found ImageMagick installation at {}".format(image_magick_path))
 
         return {"FINISHED"}

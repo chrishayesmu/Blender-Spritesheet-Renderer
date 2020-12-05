@@ -7,7 +7,7 @@ class BaseAddonPanel:
 
     @classmethod
     def preregister(cls):
-        display_area = bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.displayArea
+        display_area = Prefs.PrefsAccess.display_area
 
         # Despite reloading all the modules, somehow some of this class data is being retained between
         # disabling/re-enabling the addon, so we set everything each time to be safe
