@@ -128,29 +128,6 @@ def populateAnimationSelections(_unused):
     return 10.0
 
 @persistent
-def populateMaterialSelections(_unused):
-    props = bpy.context.scene.SpritesheetPropertyGroup
-    props.materialSelections.clear()
-
-    # TODO material selections aren't persisting; some selections are lost
-    for index in range (0, len(bpy.data.materials)):
-        selection = props.materialSelections.add()
-        selection.name = bpy.data.materials[index].name
-        selection.index = index
-        nameLower = selection.name.lower()
-
-        if "albedo" in nameLower or "base" in nameLower or "color" in nameLower:
-            selection.role = "albedo"
-        elif "mask" in nameLower:
-            selection.role = "mask_unity"
-        elif "normal" in nameLower:
-            selection.role = "normal_unity"
-        else:
-            selection.role = "other"
-
-    return 10.0
-
-@persistent
 def resetReportingProps(_unused):
     reportingProps = bpy.context.scene.ReportingPropertyGroup
 
@@ -216,12 +193,10 @@ def register():
     startTimer(findImageMagickExe, first_interval = .1)
     startTimer(initializeCollections, make_partial = True, persistent = True)
     startTimer(populateAnimationSelections, make_partial = True, persistent = True)
-    startTimer(populateMaterialSelections, make_partial = True, persistent = True)
     startTimer(resetReportingProps, make_partial = True, persistent = True)
 
     bpy.app.handlers.load_post.append(initializeCollections)
     bpy.app.handlers.load_post.append(populateAnimationSelections)
-    bpy.app.handlers.load_post.append(populateMaterialSelections)
     bpy.app.handlers.load_post.append(resetReportingProps)
 
 def unregister():
@@ -231,7 +206,6 @@ def unregister():
 
     bpy.app.handlers.load_post.remove(initializeCollections)
     bpy.app.handlers.load_post.remove(populateAnimationSelections)
-    bpy.app.handlers.load_post.remove(populateMaterialSelections)
     bpy.app.handlers.load_post.remove(resetReportingProps)
 
     del bpy.types.Scene.ReportingPropertyGroup
