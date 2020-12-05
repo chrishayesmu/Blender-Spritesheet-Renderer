@@ -1,7 +1,6 @@
 import bpy
 
 from ui.MaterialSetPanel import SPRITESHEET_PT_MaterialSetPanel as MaterialSetPanel
-from util import UIUtil
 
 class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_material_set"
@@ -14,15 +13,15 @@ class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        materialSet = props.materialSets.add()
+        material_set = props.materialSets.add()
 
         # Each material set should have a number of items equal to the number of render targets
-        for i in range (0, len(props.targetObjects)):
-            materialSet.objectMaterialPairs.add()
+        for _ in range (0, len(props.targetObjects)):
+            material_set.objectMaterialPairs.add()
 
         # Register a new UI panel to display this material set
         index = len(props.materialSets) - 1
-        MaterialSetPanel.createSubPanel(index)
+        MaterialSetPanel.create_sub_panel(index)
 
         return {"FINISHED"}
 
@@ -57,8 +56,8 @@ class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
         props.targetObjects.add()
 
         # Iterate material sets and add items to keep them in sync
-        for materialSet in props.materialSets:
-            materialSet.objectMaterialPairs.add()
+        for material_set in props.materialSets:
+            material_set.objectMaterialPairs.add()
 
         return {"FINISHED"}
 
@@ -80,7 +79,7 @@ class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
 
         props.targetObjects.remove(props.selectedTargetObjectIndex)
 
-        for materialSet in props.materialSets:
-            materialSet.objectMaterialPairs.remove(props.selectedTargetObjectIndex)
+        for material_set in props.materialSets:
+            material_set.objectMaterialPairs.remove(props.selectedTargetObjectIndex)
 
         return {"FINISHED"}

@@ -8,5 +8,5 @@ class SPRITESHEET_OT_OpenDirectoryOperator(bpy.types.Operator):
 
     directory: bpy.props.StringProperty()
 
-    def execute(self, context):
-        return {"FINISHED"} if FileSystemUtil.openFileExplorer(self.directory) else {"CANCELLED"}
+    def execute(self, _context):
+        return {"FINISHED"} if FileSystemUtil.open_file_explorer(self.directory) else {"CANCELLED"}

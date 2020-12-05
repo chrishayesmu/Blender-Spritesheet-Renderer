@@ -1,21 +1,19 @@
 import bpy
 
 class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
-    """   """
     name: bpy.props.StringProperty(
         name = "Action Name",
         default = ""
     )
-    
+
     isSelectedForExport: bpy.props.BoolProperty(
         name = "", # Force no name when rendering
         default = True
     )
-    
+
     numFrames: bpy.props.IntProperty()
 
 class MaterialSelectionPropertyGroup(bpy.types.PropertyGroup):
-    """"""
     name: bpy.props.StringProperty(
         name = "Material",
         default = ""
@@ -41,7 +39,8 @@ class MaterialSelectionPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
-def GetMaterialNameOptions(self, context):
+def get_material_name_options(self, context):
+    #pylint: disable=unused-argument
     items = []
 
     for material in bpy.data.materials:
@@ -53,8 +52,7 @@ class ObjectMaterialPairPropertyGroup(bpy.types.PropertyGroup):
     materialName: bpy.props.EnumProperty(
         name = "Material Name",
         description = "TBD",
-        items = GetMaterialNameOptions
-        # TODO add change handler to set role based on material name (and preference to disable this)
+        items = get_material_name_options
     )
 
 class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
@@ -80,7 +78,8 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         get = lambda self: -1 # dummy getter and no setter means items in the list can't be selected
     )
 
-def GetCameraControlModeOptions(self, context):
+def _get_camera_control_mode_options(self, context):
+    #pylint: disable=unused-argument
     props = context.scene.SpritesheetPropertyGroup
 
     items = [
@@ -92,31 +91,34 @@ def GetCameraControlModeOptions(self, context):
         items.append(("move_each_animation", "Fit Each Animation", "The camera will be adjusted at the start of each animation, so that the entire animation is rendered without subsequently moving the camera.", 2))
 
     if props.rotateObject:
-        items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time the Target Object is rotated, so that all frames for the rotation (including animations if enabled) are rendered without subsequently moving the camera.", 3))
+        items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time the Target Object is rotated, so that all frames for the rotation (including animations if enabled) " +
+                                                                 "are rendered without subsequently moving the camera.", 3))
 
     return items
 
-def getCameraControlMode(self):
+def _get_camera_control_mode(self):
     val = self.get("cameraControlMode")
 
     if val is None:
         val = 0
     else:
         # Make sure the chosen value is still an option based on latest configuration
-        items = GetCameraControlModeOptions(self, bpy.context)
-        isValid = any(item[3] == val for item in items)
+        items = _get_camera_control_mode_options(self, bpy.context)
+        is_valid = any(item[3] == val for item in items)
 
-        if not isValid:
+        if not is_valid:
             val = 0 # default to moving once
 
     return val
 
-def setCameraControlMode(self, value):
+def _set_camera_control_mode(self, value):
     self["cameraControlMode"] = value
 
 class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
-    def onTargetObjectUpdated(self, context):
+    def _on_target_object_updated(self, context):
+        #pylint: disable=invalid-name
+
         # When selecting an object for the first time, auto-detect its associated material and assign it
         # in all of the material sets, for convenience; also set its rotation root to itself
         if self.previousObject is None and self.object is not None and hasattr(self.object.data, "materials") and len(self.object.data.materials) > 0:
@@ -127,8 +129,8 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
             # Figure out which index this object is, because it's the same in the material sets
             index = list(props.targetObjects).index(self)
 
-            for materialSet in props.materialSets:
-                materialSet.objectMaterialPairs[index].materialName = self.object.data.materials[0].name
+            for material_set in props.materialSets:
+                material_set.objectMaterialPairs[index].materialName = self.object.data.materials[0].name
 
         self.previousObject = self.object
 
@@ -136,7 +138,7 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
         name = "Render Target",
         description = "An object to be rendered into the spritesheet",
         type = bpy.types.Object,
-        update = onTargetObjectUpdated
+        update = _on_target_object_updated
     )
 
     previousObject: bpy.props.PointerProperty(
@@ -184,14 +186,14 @@ class ReportingPropertyGroup(bpy.types.PropertyGroup):
 
     totalNumFrames: bpy.props.IntProperty() # the total number of frames which will be rendered
 
-    def estimatedTimeRemaining(self):
+    def estimated_time_remaining(self):
         if self.currentFrameNum == 0 or self.totalNumFrames == 0:
             return None
 
         # This isn't fully accurate since we have some time-consuming tasks regardless of the number of
         # frames, but render time is the vast majority of any substantial job, so close enough
-        timePerFrame = self.elapsedTime / self.currentFrameNum
-        return (self.totalNumFrames - self.currentFrameNum) * timePerFrame
+        time_per_frame = self.elapsedTime / self.currentFrameNum
+        return (self.totalNumFrames - self.currentFrameNum) * time_per_frame
 
 class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     """Property group for spritesheet rendering configuration"""
@@ -216,7 +218,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
 
     ### Materials data
     activeMaterialSelectionIndex: bpy.props.IntProperty() # TODO delete
-    
+
     materialSelections: bpy.props.CollectionProperty(type = MaterialSelectionPropertyGroup) # TODO delete
 
     materialSets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
@@ -228,7 +230,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         description = "If true, the target object will be rendered once for each selected material",
         default = False
     )
-    
+
     ### Render properties
     controlCamera: bpy.props.BoolProperty(
         name = "Control Camera",
@@ -239,16 +241,16 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     cameraControlMode: bpy.props.EnumProperty(
         name = "Control Style",
         description = "How to control the Render Camera",
-        items = GetCameraControlModeOptions,
-        get = getCameraControlMode,
-        set = setCameraControlMode
+        items = _get_camera_control_mode_options,
+        get = _get_camera_control_mode,
+        set = _set_camera_control_mode
     )
 
     rotateObject: bpy.props.BoolProperty(
         name = "Rotate Objects",
         description = "Whether to rotate the target objects. All objects will be rotated simultaneously, but you may choose an object to rotate each around (such as a parent or armature)"
     )
-    
+
     rotationNumber: bpy.props.IntProperty(
         name = "Total Angles",
         description = "How many rotations to perform",
@@ -311,7 +313,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         description = "If 'Rotate During Render' is enabled, this will generate one output file per rotation option",
         default = False
     )
-    
+
     spriteSize: bpy.props.IntVectorProperty(
         name = "Sprite Size",
         description = "How large each individual sprite should be",

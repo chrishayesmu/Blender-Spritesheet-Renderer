@@ -13,13 +13,13 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
     bl_options = set() # override parent's DEFAULT_CLOSED
 
     def draw(self, context):
-        reportingProps = context.scene.ReportingPropertyGroup
+        reporting_props = context.scene.ReportingPropertyGroup
 
         col = self.layout.column(heading = "Output Progress to", align = True)
         col.use_property_split = True
         col.use_property_decorate = False
-        col.prop(reportingProps, "outputToTerminal")
-        col.prop(reportingProps, "outputToUI")
+        col.prop(reporting_props, "outputToTerminal")
+        col.prop(reporting_props, "outputToUI")
 
         row = self.layout.row()
         row.operator("spritesheet.render", text = "Start Render")
@@ -27,57 +27,57 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
         if SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason:
             self.draw_render_disabled_reason(context)
 
-        if not reportingProps.hasAnyJobStarted:
-            if reportingProps.outputToUI:
+        if not reporting_props.hasAnyJobStarted:
+            if reporting_props.outputToUI:
                 row = self.layout.row()
                 row.label(text = "Job output will be available here once a render job has started.")
         else:
-            if reportingProps.jobInProgress:
-                if reportingProps.outputToUI:
-                    self.draw_active_job_status(reportingProps)
+            if reporting_props.jobInProgress:
+                if reporting_props.outputToUI:
+                    self.draw_active_job_status(reporting_props)
             else:
                 row = self.layout.row()
                 box = row.box()
                 box.label(text = "No job is currently running. Showing results from the latest job.", icon = "INFO")
 
                 row = self.layout.row()
-                row.label(text = f"Last job completed after {StringUtil.timeAsString(reportingProps.elapsedTime)}.")
+                row.label(text = f"Last job completed after {StringUtil.timeAsString(reporting_props.elapsedTime)}.")
 
                 row = self.layout.row()
-                row.label(text = f"A total of {reportingProps.currentFrameNum} frame(s) were rendered (of an expected {reportingProps.totalNumFrames}).")
+                row.label(text = f"A total of {reporting_props.currentFrameNum} frame(s) were rendered (of an expected {reporting_props.totalNumFrames}).")
 
-                if not reportingProps.lastErrorMessage:
-                    if FileSystemUtil.getSystemType() in ("unchecked", "unknown"):
+                if not reporting_props.lastErrorMessage:
+                    if FileSystemUtil.get_system_type() in ("unchecked", "unknown"):
                         # We don't know how to open the directory automatically so just show it
                         row = self.layout.row()
-                        row.label(text = f"Output is at {reportingProps.outputDirectory}")
+                        row.label(text = f"Output is at {reporting_props.outputDirectory}")
                     else:
                         row = self.layout.row()
-                        row.operator("spritesheet.open_directory", text = "Open Last Job Output").directory = reportingProps.outputDirectory
+                        row.operator("spritesheet.open_directory", text = "Open Last Job Output").directory = reporting_props.outputDirectory
 
                 # Don't show error message if a job is still running, it would be misleading
-                if reportingProps.lastErrorMessage:
+                if reporting_props.lastErrorMessage:
                     self.draw_last_job_error_message(context)
 
-    def draw_active_job_status(self, reportingProps):
+    def draw_active_job_status(self, reporting_props):
         row = self.layout.row()
         box = row.box()
         box.label(text = "Press ESC at any time to cancel job.", icon = "INFO")
 
         row = self.layout.row()
-        progressPercent = math.floor(100 * reportingProps.currentFrameNum / reportingProps.totalNumFrames)
-        row.label(text = f"Rendering frame {reportingProps.currentFrameNum} of {reportingProps.totalNumFrames} ({progressPercent}% complete).")
+        progress_percent = math.floor(100 * reporting_props.currentFrameNum / reporting_props.totalNumFrames)
+        row.label(text = f"Rendering frame {reporting_props.currentFrameNum} of {reporting_props.totalNumFrames} ({progress_percent}% complete).")
 
         row = self.layout.row()
-        row.label(text = f"Elapsed time: {StringUtil.timeAsString(reportingProps.elapsedTime)}")
+        row.label(text = f"Elapsed time: {StringUtil.timeAsString(reporting_props.elapsedTime)}")
 
         row = self.layout.row()
-        timeRemaining = reportingProps.estimatedTimeRemaining()
-        timeRemainingStr = StringUtil.timeAsString(timeRemaining) if timeRemaining != None else "Calculating.."
-        row.label(text = f"Estimated time remaining: {timeRemainingStr}")
+        time_remaining = reporting_props.estimatedTimeRemaining()
+        time_remaining_str = StringUtil.time_as_string(time_remaining) if time_remaining is not None else "Calculating.."
+        row.label(text = f"Estimated time remaining: {time_remaining_str}")
 
     def draw_last_job_error_message(self, context):
-        reportingProps = context.scene.ReportingPropertyGroup
+        reporting_props = context.scene.ReportingPropertyGroup
 
         row = self.layout.row()
         box = row.box()
@@ -92,10 +92,10 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
 
         col = row.column() # text column
 
-        msg = "Last job ended in error: " + reportingProps.lastErrorMessage
-        
-        wrappedMessageLines = UIUtil.wrapTextInRegion(context, msg)
-        for line in wrappedMessageLines:
+        msg = "Last job ended in error: " + reporting_props.lastErrorMessage
+
+        wrapped_message_lines = UIUtil.wrap_text_in_region(context, msg)
+        for line in wrapped_message_lines:
             row = col.row()
             row.label(text = line)
 
@@ -113,20 +113,20 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
 
         col = row.column() # text column
 
-        wrappedMessageLines = UIUtil.wrapTextInRegion(context, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason)
-        for line in wrappedMessageLines:
+        wrapped_message_lines = UIUtil.wrap_text_in_region(context, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason)
+        for line in wrapped_message_lines:
             row = col.row()
             row.label(text = line)
 
         # Hacky: check for keywords in the error string to expose some functionality
-        reasonLower = SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason.lower()
-        if "addon preferences" in reasonLower:
+        reason_lower = SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason.lower()
+        if "addon preferences" in reason_lower:
             row = box.row()
             row.operator("spritesheet.showprefs", text = "Show Addon Preferences")
 
-            if "imagemagick" in reasonLower:
+            if "imagemagick" in reason_lower:
                 row = box.row()
                 row.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")
-        elif "orthographic" in reasonLower:
+        elif "orthographic" in reason_lower:
             row = box.row()
             row.operator("spritesheet.configure_render_camera", text = "Make Camera Ortho")

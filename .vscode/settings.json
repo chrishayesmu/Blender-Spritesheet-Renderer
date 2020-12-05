@@ -12,5 +12,7 @@
     "git.showProgress": false,
     "git.showInlineOpenFileAction": false,
     "git.suggestSmartCommit": false,
-    "git.terminalAuthentication": false
+    "git.terminalAuthentication": false,
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }

@@ -2,9 +2,11 @@ import platform
 import string
 import subprocess
 
-def getFileSystems():
-    system = getSystemType()
-    fileSystems = []
+#pylint: disable=import-outside-toplevel
+
+def get_file_systems():
+    system = get_system_type()
+    file_systems = []
 
     if system == "windows":
         from ctypes import windll
@@ -15,30 +17,30 @@ def getFileSystems():
 
         for letter in string.ascii_uppercase:
             if bitmask & 1:
-                fileSystems.append(letter + ":\\")
+                file_systems.append(letter + ":\\")
 
             bitmask >>= 1
 
-    return fileSystems
+    return file_systems
 
-def getSystemType():
+def get_system_type():
     """Attempts to determine what type of system we're on"""
 
     system = platform.uname()[0]
 
-    if system.lower() in ["windows"]: # TODO extend this
+    if system.lower() in ["windows"]:
         return system.lower()
 
     return "unknown"
 
-def openFileExplorer(dirPath):
-    if not dirPath:
-        raise ValueError("openFileExplorer called with empty dirPath argument ({})".format(dirPath))
+def open_file_explorer(dir_path):
+    if not dir_path:
+        raise ValueError("openFileExplorer called with empty dirPath argument ({})".format(dir_path))
 
-    system = getSystemType()
+    system = get_system_type()
 
     if system == "windows":
-        subprocess.Popen('explorer "{}"'.format(dirPath))
+        subprocess.Popen('explorer "{}"'.format(dir_path))
         return True
-    else:
-        return False
+
+    return False

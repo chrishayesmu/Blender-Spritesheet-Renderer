@@ -7,30 +7,30 @@ class BaseAddonPanel:
 
     @classmethod
     def preregister(cls):
-        displayArea = bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.displayArea
+        display_area = bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.displayArea
 
         # Despite reloading all the modules, somehow some of this class data is being retained between
         # disabling/re-enabling the addon, so we set everything each time to be safe
-        if displayArea == "render_properties":
+        if display_area == "render_properties":
             cls.bl_parent_id = "SPRITESHEET_PT_AddonPanel"
             cls.bl_space_type = "PROPERTIES"
             cls.bl_region_type = "WINDOW"
             cls.bl_context = "render"
             cls.bl_category = ""
-        elif displayArea == "view3d":
+        elif display_area == "view3d":
             cls.bl_space_type = "VIEW_3D"
             cls.bl_region_type = "UI"
             cls.bl_context = ""
             cls.bl_category = "Spritesheet"
             cls.bl_parent_id = ""
         else:
-            raise ValueError("Unrecognized displayArea value: {}".format(displayArea))
+            raise ValueError("Unrecognized displayArea value: {}".format(display_area))
 
     def template_list(self, layout, listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, add_op = None, remove_op = None):
-        listObj = getattr(dataptr, propname)
+        list_obj = getattr(dataptr, propname)
 
         # Mostly passthrough but with a couple of standardized params
-        layout.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, rows = min(5, max(1, len(listObj))), maxrows = 5)
+        layout.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, rows = min(5, max(1, len(list_obj))), maxrows = 5)
 
         if add_op or remove_op:
             col = layout.column(align = True)

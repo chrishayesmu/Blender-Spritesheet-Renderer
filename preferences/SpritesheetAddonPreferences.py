@@ -2,8 +2,10 @@ import bpy
 import json
 import os
 
-def _getter(key, defaultValue):
-    return lambda self: self._prefs[key] if key in self._prefs else defaultValue
+#pylint: disable=protected-access
+
+def _getter(key, default_value):
+    return lambda self: self._prefs[key] if key in self._prefs else default_value
 
 def _setter(key):
     return (lambda self, value: _set(self, key, value))
@@ -11,15 +13,15 @@ def _setter(key):
 def _set(obj, key, value):
     obj._prefs[key] = value
 
-def _onUpdate(self, context, reloadAddonOnChange):
+def _on_update(self, _, reload_addon_on_change):
     with open(self.prefsFile, "w") as f:
         json.dump(self._prefs, f)
 
-    if reloadAddonOnChange:
+    if reload_addon_on_change:
         bpy.ops.preferences.addon_enable(module=SpritesheetAddonPreferences.bl_idname)
 
-def _updater(reloadAddonOnChange = False):
-    return lambda self, context: _onUpdate(self, context, reloadAddonOnChange)
+def _updater(reload_addon_on_change = False):
+    return lambda self, context: _on_update(self, context, reload_addon_on_change)
 
 class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = os.path.basename(os.path.dirname(os.path.dirname(__file__)))
@@ -36,7 +38,7 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
         ],
         get = _getter("displayArea", 0),
         set = _setter("displayArea"),
-        update = _updater(reloadAddonOnChange = True)
+        update = _updater(reload_addon_on_change = True)
     )
 
     imageMagickPath: bpy.props.StringProperty(
@@ -58,7 +60,7 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
             # If the JSON file is malformed, we'll just load defaults
             pass
 
-    def draw(self, context):
+    def draw(self, _):
         row = self.layout.row()
         row.prop(self, "displayArea")
 

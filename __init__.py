@@ -3,7 +3,7 @@ from bpy.app.handlers import persistent
 import functools
 import importlib
 import math
-import os 
+import os
 import sys
 
 bl_info = {
@@ -89,17 +89,17 @@ class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
     bl_label = "Open Addon Preferences"
     bl_description = "Opens the addon preferences for Spritesheet Renderer"
 
-    def execute(self, context):
+    def execute(self, _context):
         bpy.ops.preferences.addon_show(module = __package__)
         return {'FINISHED'}
 
-def findImageMagickExe():
+def find_image_magick_exe():
     # Only look for the exe if the path isn't already set
     if not bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath:
         bpy.ops.spritesheet.prefs_locate_imagemagick()
 
 @persistent
-def initializeCollections(_unused):
+def initialize_collections(_unused):
     """Initializes certain CollectionProperty objects that otherwise would be empty."""
     props = bpy.context.scene.SpritesheetPropertyGroup
 
@@ -107,18 +107,18 @@ def initializeCollections(_unused):
         bpy.ops.spritesheet.add_material_set()
 
     for i in range(0, len(props.materialSets)):
-        MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel.createSubPanel(i)
+        MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
 
     if len(props.targetObjects) == 0:
         bpy.ops.spritesheet.add_render_target()
 
 @persistent
-def populateAnimationSelections(_unused):
+def populate_animation_selections(_unused):
     scene = bpy.context.scene
     props = scene.SpritesheetPropertyGroup
     props.animationSelections.clear()
-    
-    for index, action in enumerate(bpy.data.actions):
+
+    for _, action in enumerate(bpy.data.actions):
         selection = props.animationSelections.add()
         selection.name = action.name
         selection.numFrames = math.ceil(action.frame_range[1]) - math.floor(action.frame_range[0])
@@ -126,17 +126,17 @@ def populateAnimationSelections(_unused):
     return 10.0
 
 @persistent
-def resetReportingProps(_unused):
-    reportingProps = bpy.context.scene.ReportingPropertyGroup
+def reset_reporting_props(_unused):
+    reporting_props = bpy.context.scene.ReportingPropertyGroup
 
-    reportingProps.currentFrameNum = 0
-    reportingProps.elapsedTime = 0
-    reportingProps.hasAnyJobStarted = False
-    reportingProps.jobInProgress = False
-    reportingProps.lastErrorMessage = ""
-    reportingProps.outputDirectory = ""
-    reportingProps.systemType = FileSystemUtil.getSystemType()
-    reportingProps.totalNumFrames = 0
+    reporting_props.currentFrameNum = 0
+    reporting_props.elapsedTime = 0
+    reporting_props.hasAnyJobStarted = False
+    reporting_props.jobInProgress = False
+    reporting_props.lastErrorMessage = ""
+    reporting_props.outputDirectory = ""
+    reporting_props.systemType = FileSystemUtil.get_system_type()
+    reporting_props.totalNumFrames = 0
 
 classes = [
     # Property groups
@@ -183,42 +183,42 @@ timers = []
 def register():
     for cls in classes:
         Register.register_class(cls)
-    
+
     bpy.types.Scene.SpritesheetPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.SpritesheetPropertyGroup)
     bpy.types.Scene.ReportingPropertyGroup = bpy.props.PointerProperty(type = SpritesheetPropertyGroup.ReportingPropertyGroup)
-    
-    # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
-    startTimer(findImageMagickExe, first_interval = .1)
-    startTimer(initializeCollections, make_partial = True, persistent = True)
-    startTimer(populateAnimationSelections, make_partial = True, persistent = True)
-    startTimer(resetReportingProps, make_partial = True, persistent = True)
 
-    bpy.app.handlers.load_post.append(initializeCollections)
-    bpy.app.handlers.load_post.append(populateAnimationSelections)
-    bpy.app.handlers.load_post.append(resetReportingProps)
+    # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
+    start_timer(find_image_magick_exe, first_interval = .1)
+    start_timer(initialize_collections, make_partial = True, is_persistent = True)
+    start_timer(populate_animation_selections, make_partial = True, is_persistent = True)
+    start_timer(reset_reporting_props, make_partial = True, is_persistent = True)
+
+    bpy.app.handlers.load_post.append(initialize_collections)
+    bpy.app.handlers.load_post.append(populate_animation_selections)
+    bpy.app.handlers.load_post.append(reset_reporting_props)
 
 def unregister():
     for timer in timers:
         if bpy.app.timers.is_registered(timer):
             bpy.app.timers.unregister(timer)
 
-    bpy.app.handlers.load_post.remove(initializeCollections)
-    bpy.app.handlers.load_post.remove(populateAnimationSelections)
-    bpy.app.handlers.load_post.remove(resetReportingProps)
+    bpy.app.handlers.load_post.remove(initialize_collections)
+    bpy.app.handlers.load_post.remove(populate_animation_selections)
+    bpy.app.handlers.load_post.remove(reset_reporting_props)
 
     del bpy.types.Scene.ReportingPropertyGroup
     del bpy.types.Scene.SpritesheetPropertyGroup
-    
-    UIUtil.unregisterSubPanels(MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel)
+
+    UIUtil.unregister_subpanels()
 
     for cls in reversed(classes):
         Register.unregister_class(cls)
 
-def startTimer(func, make_partial = False, first_interval = 0, persistent = False):
+def start_timer(func, make_partial = False, first_interval = 0, is_persistent = False):
     if make_partial:
         func = functools.partial(func, None)
 
-    bpy.app.timers.register(func, first_interval = first_interval, persistent = persistent)
+    bpy.app.timers.register(func, first_interval = first_interval, persistent = is_persistent)
     timers.append(func)
 
 # This allows you to run the script directly from Blender's Text editor

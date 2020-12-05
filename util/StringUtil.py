@@ -1,26 +1,26 @@
 import math
 from mathutils import Vector
 
-def formatNumber(val, precision = 3):
+def format_number(val, precision = 3):
     if type(val) in [tuple, Vector]:
         return tuple(round(x, precision) for x in val)
     else:
         return round(val, precision)
 
-def timeAsString(timeInSeconds, precision = 0, includeHours = True):
-    if includeHours:
-        hours = math.floor(timeInSeconds / 3600)
-        hoursStr = str(hours).zfill(2)
-        timeInSeconds -= hours * 3600
+def time_as_string(time_in_seconds, precision = 0, include_hours = True):
+    if include_hours:
+        hours = math.floor(time_in_seconds / 3600)
+        hours_str = str(hours).zfill(2)
+        time_in_seconds -= hours * 3600
 
-    minutes = math.floor(timeInSeconds / 60)
-    minutesStr = str(minutes).zfill(2)
-    timeInSeconds -= minutes * 60
+    minutes = math.floor(time_in_seconds / 60)
+    minutes_str = str(minutes).zfill(2)
+    time_in_seconds -= minutes * 60
 
-    seconds = round(timeInSeconds, precision)
-    secondsParts = str(seconds).split(".")
-    wholeSecondsStr = secondsParts[0].zfill(2)
-    fracSecondsStr = secondsParts[1] + "0" * (precision - len(secondsParts[1])) if len(secondsParts) > 1 else "0" * precision # right pad zeroes for the fractional part    
-    secondsStr = wholeSecondsStr + "." + fracSecondsStr if precision > 0 else wholeSecondsStr
+    seconds = round(time_in_seconds, precision)
+    seconds_parts = str(seconds).split(".")
+    whole_seconds_str = seconds_parts[0].zfill(2)
+    frac_seconds_str = seconds_parts[1] + "0" * (precision - len(seconds_parts[1])) if len(seconds_parts) > 1 else "0" * precision # right pad zeroes for the fractional part
+    seconds_str = whole_seconds_str + "." + frac_seconds_str if precision > 0 else whole_seconds_str
 
-    return hoursStr + ":" + minutesStr + ":" + secondsStr if includeHours else minutesStr + ":" + secondsStr
+    return hours_str + ":" + minutes_str + ":" + seconds_str if include_hours else minutes_str + ":" + seconds_str

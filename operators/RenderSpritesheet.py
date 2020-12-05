@@ -29,8 +29,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         try:
             scene = context.scene
             props = scene.SpritesheetPropertyGroup
-            enabledActionSelections = [a for a in props.animationSelections if a.isSelectedForExport]
-            enabledMaterialSelections = [ms for ms in props.materialSelections if ms.isSelectedForExport]
+            enabled_action_selections = [a for a in props.animationSelections if a.isSelectedForExport]
+            enabled_material_selections = [ms for ms in props.materialSelections if ms.isSelectedForExport]
 
             reason = ""
 
@@ -42,7 +42,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 reason = "ImageMagick path is not set in Addon Preferences."
             elif props.useAnimations and not props.targetObject.animation_data:
                 reason = "'Control Animations' is enabled, but Target Object has no animation data."
-            elif props.useAnimations and len(enabledActionSelections) == 0:
+            elif props.useAnimations and len(enabled_action_selections) == 0:
                 reason = "'Control Animations' is enabled, but no animations have been selected for use."
             elif props.separateFilesPerAnimation and not props.useAnimations:
                 reason = "'Separate Files Per Animation' is enabled, but 'Control Animations' is not."
@@ -50,34 +50,34 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 reason = "'Separate Files Per Rotation' is enabled, but 'Rotate Object' is not."
             elif props.useMaterials and len(props.targetObject.data.materials) != 1:
                 reason = "If 'Control Materials' is enabled, Target Object must have exactly 1 material slot."
-            elif props.useMaterials and len(enabledMaterialSelections) == 0:
+            elif props.useMaterials and len(enabled_material_selections) == 0:
                 reason = "'Control Materials' is enabled, but no materials have been selected for use."
             elif props.controlCamera and props.renderCamera and props.renderCamera.data.type != "ORTHO":
                 reason = "'Control Render Camera' is currently only supported for orthographic cameras."
 
             SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason = reason
-            
+
             return not reason
         except Exception as e:
             print("Error occurred in RenderSpritesheetOperator.poll")
             print(e)
             return False
 
-    def invoke(self, context, event):
-        reportingProps = context.scene.ReportingPropertyGroup
+    def invoke(self, context, _):
+        reporting_props = context.scene.ReportingPropertyGroup
 
-        self.jsonData = {}
-        self.outputDir = None
+        self.json_data = {}
+        self.output_dir = None
         self._error = None
-        self._lastJobId = -1
-        self._lastJobStartTime = None
-        self._nextJobId = 0
-        self._startTime = time.clock()
-        self._terminalWriter = TerminalWriter(sys.stdout, not reportingProps.outputToTerminal)
-        self._sceneSnapshot = SceneSnapshot(context, self._terminalWriter)
+        self._last_job_id = -1
+        self._last_job_start_time = None
+        self._next_job_id = 0
+        self._start_time = time.clock()
+        self._terminal_writer = TerminalWriter(sys.stdout, not reporting_props.outputToTerminal)
+        self._scene_snapshot = SceneSnapshot(context, self._terminal_writer)
 
         # Execute generator a single time to set up all reporting properties and validate config; this won't render anything yet
-        self._generator = self._generateFramesAndSpritesheets(context)
+        self._generator = self._generate_frames_and_spritesheets(context)
         next(self._generator)
 
         self.execute(context)
@@ -85,8 +85,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event):
-        reportingProps = context.scene.ReportingPropertyGroup
-        reportingProps.elapsedTime = time.clock() - self._startTime
+        reporting_props = context.scene.ReportingPropertyGroup
+        reporting_props.elapsedTime = time.clock() - self._start_time
 
         if event.type in {"ESC"}:
             self._error = "Job cancelled by request of user"
@@ -111,521 +111,521 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         return {"PASS_THROUGH"}
 
     def execute(self, context):
-        reportingProps = context.scene.ReportingPropertyGroup
+        reporting_props = context.scene.ReportingPropertyGroup
         wm = context.window_manager
 
         self._timer = wm.event_timer_add(0.25, window = context.window)
         wm.modal_handler_add(self)
 
-        reportingProps.hasAnyJobStarted = True
-        reportingProps.jobInProgress = True
-        reportingProps.outputDirectory = self._baseOutputDir()
+        reporting_props.hasAnyJobStarted = True
+        reporting_props.jobInProgress = True
+        reporting_props.outputDirectory = self._base_output_dir()
 
     def cancel(self, context):
-        reportingProps = context.scene.ReportingPropertyGroup
-        reportingProps.lastErrorMessage = self._error if self._error else ""
-        reportingProps.jobInProgress = False
+        reporting_props = context.scene.ReportingPropertyGroup
+        reporting_props.lastErrorMessage = self._error if self._error else ""
+        reporting_props.jobInProgress = False
 
         context.window_manager.event_timer_remove(self._timer)
 
         if self._error:
-            self._terminalWriter.indent = 0
-            self._terminalWriter.write("\n\nError occurred, cancelling operator: {}\n\n".format(self._error))
+            self._terminal_writer.indent = 0
+            self._terminal_writer.write("\n\nError occurred, cancelling operator: {}\n\n".format(self._error))
             self.report({'ERROR'}, self._error)
 
-    def _generateFramesAndSpritesheets(self, context):
+    def _generate_frames_and_spritesheets(self, context):
+        #pylint: disable=too-many-branches
+        #pylint: disable=too-many-statements
         scene = context.scene
         props = scene.SpritesheetPropertyGroup
-        reportingProps = scene.ReportingPropertyGroup
+        reporting_props = scene.ReportingPropertyGroup
 
-        reportingProps.currentFrameNum = 0
-        reportingProps.totalNumFrames = 0
+        reporting_props.currentFrameNum = 0
+        reporting_props.totalNumFrames = 0
 
-        self._terminalWriter.write("\n\n---------- Starting spritesheet render job ----------\n\n")
+        self._terminal_writer.write("\n\n---------- Starting spritesheet render job ----------\n\n")
 
         try:
-            result = ImageMagick.validateImageMagickAtPath()
+            result = ImageMagick.validate_image_magick_at_path(bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath)
             if not result["succeeded"]:
                 self._error = "ImageMagick check failed\n" + result["stderr"]
                 return
-        except Exception as e:
+        except:
             self._error = "Failed to validate ImageMagick executable. Check that the path is correct in Addon Preferences."
             return
 
-        self._setUpRenderSettings()
+        self._set_up_render_settings()
 
-        self._terminalWriter.clearTerminal()
+        self._terminal_writer.clear()
 
         scene.camera = props.renderCamera
 
         if props.useAnimations:
-            enabledActions = [bpy.data.actions.get(a.name) for a in props.animationSelections if a.isSelectedForExport]
-            separateFilesPerAnimation = props.separateFilesPerAnimation
+            enabled_actions = [bpy.data.actions.get(a.name) for a in props.animationSelections if a.isSelectedForExport]
+            separate_files_per_animation = props.separateFilesPerAnimation
         else:
-            enabledActions = [None]
-            separateFilesPerAnimation = False
+            enabled_actions = [None]
+            separate_files_per_animation = False
 
         if props.useMaterials:
-            enabledMaterialSelections = [ms for ms in props.materialSelections if ms.isSelectedForExport]
-            enabledMaterials = [bpy.data.materials.get(ms.name) for ms in enabledMaterialSelections]
+            enabled_material_selections = [ms for ms in props.materialSelections if ms.isSelectedForExport]
+            enabled_materials = [bpy.data.materials.get(ms.name) for ms in enabled_material_selections]
         else:
-            enabledMaterialSelections = []
-            enabledMaterials = [None]
+            enabled_material_selections = []
+            enabled_materials = [None]
 
         if props.rotateObject:
             rotations = [int(n * (360 / props.rotationNumber)) for n in range(props.rotationNumber)]
-            rotationRoot = props.rotationRoot if props.rotationRoot else props.targetObject
-            separateFilesPerRotation = props.separateFilesPerRotation
+            rotation_root = props.rotationRoot if props.rotationRoot else props.targetObject
+            separate_files_per_rotation = props.separateFilesPerRotation
         else:
             rotations = [0]
-            rotationRoot = props.targetObject
-            separateFilesPerRotation = False
-        
+            rotation_root = props.targetObject
+            separate_files_per_rotation = False
+
         # Variables for progress tracking
-        materialNumber = 0
-        numExpectedJsonFiles = (len(rotations) if props.separateFilesPerRotation else 1) * (len(enabledActions) if props.separateFilesPerAnimation else 1) # materials never result in separate JSON files
+        material_number = 0
+        num_expected_json_files = (len(rotations) if props.separateFilesPerRotation else 1) * (len(enabled_actions) if props.separateFilesPerAnimation else 1) # materials never result in separate JSON files
 
-        reportingProps.totalNumFrames = self._countTotalFrames(enabledMaterials, rotations, enabledActions)
-        self._terminalWriter.write("Expecting to render a total of {} frames\n".format(reportingProps.totalNumFrames))
+        reporting_props.totalNumFrames = self._count_total_frames(enabled_materials, rotations, enabled_actions)
+        self._terminal_writer.write("Expecting to render a total of {} frames\n".format(reporting_props.totalNumFrames))
 
-        if separateFilesPerAnimation:
-            outputMode = "per animation"
-        elif separateFilesPerRotation:
-            outputMode = "per rotation"
+        if separate_files_per_animation:
+            output_mode = "per animation"
+        elif separate_files_per_rotation:
+            output_mode = "per rotation"
         else:
-            outputMode = "per material"
+            output_mode = "per material"
 
-        self._terminalWriter.write("File output will be generated {}\n\n".format(outputMode))
+        self._terminal_writer.write("File output will be generated {}\n\n".format(output_mode))
 
         # We yield once before modifying the scene at all, so that all of the reporting properties are set up
         yield
 
         if props.controlCamera and props.cameraControlMode == "move_once":
-            self._optimizeCamera(context, rotationRoot = rotationRoot, rotations = rotations, enabledActions = enabledActions)
+            self._optimize_camera(context, rotation_root = rotation_root, rotations = rotations, enabled_actions = enabled_actions)
 
-        self._terminalWriter.write("\n")
+        self._terminal_writer.write("\n")
 
-        framesSinceLastOutput = 0
+        frames_since_last_output = 0
 
-        for material in enabledMaterials:
-            materialNumber += 1
-            materialName = material.name if material else "N/A"
-            renderData = []
-            totalFramesForMaterial = 0
-            tempDir = tempfile.TemporaryDirectory()
+        for material in enabled_materials:
+            material_number += 1
+            material_name = material.name if material else "N/A"
+            render_data = []
+            temp_dir = tempfile.TemporaryDirectory()
 
-            self._terminalWriter.write("Rendering material {} of {}: \"{}\"\n".format(materialNumber, len(enabledMaterials), materialName))
-            self._terminalWriter.indent += 1
+            self._terminal_writer.write("Rendering material {} of {}: \"{}\"\n".format(material_number, len(enabled_materials), material_name))
+            self._terminal_writer.indent += 1
 
             if material is not None:
                 props.targetObject.data.materials[0] = material
- 
-            rotationNumber = 0
-            for rotationAngle in rotations:
-                rotationNumber += 1
-                actionNumber = 0
 
-                self._terminalWriter.write("Rendering angle {} of {}: {} degrees\n".format(rotationNumber, len(rotations), rotationAngle))
-                self._terminalWriter.indent += 1
+            rotation_number = 0
+            for rotation_angle in rotations:
+                rotation_number += 1
+                action_number = 0
+
+                self._terminal_writer.write("Rendering angle {} of {}: {} degrees\n".format(rotation_number, len(rotations), rotation_angle))
+                self._terminal_writer.indent += 1
 
                 if props.rotateObject:
-                    rotationRoot.rotation_euler[2] = math.radians(rotationAngle)
+                    rotation_root.rotation_euler[2] = math.radians(rotation_angle)
 
-                tempDirPath = tempDir.name
+                temp_dir_path = temp_dir.name
 
                 if props.controlCamera and props.cameraControlMode == "move_each_rotation":
-                    self._optimizeCamera(context, rotationRoot = rotationRoot, rotations = rotations, enabledActions = enabledActions, currentRotation = rotationAngle)
-                
-                for action in enabledActions:
-                    actionNumber += 1
+                    self._optimize_camera(context, rotation_root = rotation_root, rotations = rotations, enabled_actions = enabled_actions, current_rotation = rotation_angle)
+
+                for action in enabled_actions:
+                    action_number += 1
 
                     if action is not None:
-                        self._terminalWriter.write("Processing action {} of {}: \"{}\"\n".format(actionNumber, len(enabledActions), action.name))
-                        self._terminalWriter.indent += 1
+                        self._terminal_writer.write("Processing action {} of {}: \"{}\"\n".format(action_number, len(enabled_actions), action.name))
+                        self._terminal_writer.indent += 1
 
                         # Yield after each frame of the animation to update the UI
-                        for val in self._renderAction(context, action, rotationAngle, tempDirPath):
-                            actionData = val
+                        for val in self._render_action(context, action, rotation_angle, temp_dir_path):
+                            action_data = val
                             yield
 
-                        actionData["material"] = material
-                        actionData["rotation"] = rotationAngle
-                        renderData.append(actionData)
+                        action_data["material"] = material
+                        action_data["rotation"] = rotation_angle
+                        render_data.append(action_data)
 
-                        framesSinceLastOutput += actionData["numFrames"]
+                        frames_since_last_output += action_data["numFrames"]
 
                         # Render now if files are being split by animation, so we can wipe out all the per-frame
                         # files before processing the next animation
-                        if separateFilesPerAnimation:
-                            self._terminalWriter.write("\nCombining image files for action {} of {}\n".format(actionNumber, len(enabledActions)))
-                            imageMagickResult = self._runImageMagick(props, reportingProps, action, framesSinceLastOutput, tempDirPath, rotationAngle)
+                        if separate_files_per_animation:
+                            self._terminal_writer.write("\nCombining image files for action {} of {}\n".format(action_number, len(enabled_actions)))
+                            image_magick_result = self._run_image_magick(props, reporting_props, action, frames_since_last_output, temp_dir_path, rotation_angle)
 
-                            if not imageMagickResult["succeeded"]: # error running ImageMagick
+                            if not image_magick_result["succeeded"]: # error running ImageMagick
                                 return
 
-                            self._createJsonFile(props, reportingProps, enabledMaterialSelections, renderData, imageMagickResult)
-                            self._terminalWriter.write("\n")
-                            
-                            framesSinceLastOutput = 0
-                            renderData = []
-                            tempDir = tempfile.TemporaryDirectory() # change directories for per-frame files
+                            self._create_json_file(props, reporting_props, enabled_material_selections, render_data, image_magick_result)
+                            self._terminal_writer.write("\n")
 
-                        self._terminalWriter.indent -= 1
+                            frames_since_last_output = 0
+                            render_data = []
+                            temp_dir = tempfile.TemporaryDirectory() # change directories for per-frame files
+
+                        self._terminal_writer.indent -= 1
                     else:
-                        stillData = self._renderStill(rotationAngle, framesSinceLastOutput, tempDirPath)
-                        renderData.append(stillData)
-                        framesSinceLastOutput += 1
+                        still_data = self._render_still(rotation_angle, frames_since_last_output, temp_dir_path)
+                        render_data.append(still_data)
+                        frames_since_last_output += 1
 
                         yield
 
                     # End of for(actions)
 
-                if separateFilesPerRotation and not separateFilesPerAnimation:
-                    self._terminalWriter.write("\nCombining image files for angle {} of {}\n".format(rotationNumber, len(rotations)))
-                    self._terminalWriter.indent += 1
+                if separate_files_per_rotation and not separate_files_per_animation:
+                    self._terminal_writer.write("\nCombining image files for angle {} of {}\n".format(rotation_number, len(rotations)))
+                    self._terminal_writer.indent += 1
 
                     # Output one file for the whole rotation, with all animations in it
-                    imageMagickResult = self._runImageMagick(props, reportingProps, action, framesSinceLastOutput, tempDirPath, rotationAngle)
-                
-                    if not imageMagickResult["succeeded"]: # error running ImageMagick
+                    image_magick_result = self._run_image_magick(props, reporting_props, None, frames_since_last_output, temp_dir_path, rotation_angle)
+
+                    if not image_magick_result["succeeded"]: # error running ImageMagick
                         return
 
-                    self._createJsonFile(props, reportingProps, enabledMaterialSelections, renderData, imageMagickResult)
-                    self._terminalWriter.write("\n")
-                    self._terminalWriter.indent -= 1
+                    self._create_json_file(props, reporting_props, enabled_material_selections, render_data, image_magick_result)
+                    self._terminal_writer.write("\n")
+                    self._terminal_writer.indent -= 1
 
-                    framesSinceLastOutput = 0
-                    renderData = []
-                    tempDir = tempfile.TemporaryDirectory() # change directories for per-frame files
-                    
-                self._terminalWriter.indent -= 1
+                    frames_since_last_output = 0
+                    render_data = []
+                    temp_dir = tempfile.TemporaryDirectory() # change directories for per-frame files
+
+                self._terminal_writer.indent -= 1
 
                 # End of for(rotations)
 
-            if not separateFilesPerRotation and not separateFilesPerAnimation:
-                self._terminalWriter.write("\nCombining image files for material {} of {}\n".format(materialNumber, len(enabledMaterials)))
-                self._terminalWriter.indent += 1
+            if not separate_files_per_rotation and not separate_files_per_animation:
+                self._terminal_writer.write("\nCombining image files for material {} of {}\n".format(material_number, len(enabled_materials)))
+                self._terminal_writer.indent += 1
                 # Output one file for the entire material
-                imageMagickResult = self._runImageMagick(props, reportingProps, action, framesSinceLastOutput, tempDirPath, rotationAngle)
-            
-                if not imageMagickResult["succeeded"]: # error running ImageMagick
+                image_magick_result = self._run_image_magick(props, reporting_props, None, frames_since_last_output, temp_dir_path, None)
+
+                if not image_magick_result["succeeded"]: # error running ImageMagick
                     return
 
-                self._createJsonFile(props, reportingProps, enabledMaterialSelections, renderData, imageMagickResult)
-                self._terminalWriter.write("\n")
-                self._terminalWriter.indent -= 1
+                self._create_json_file(props, reporting_props, enabled_material_selections, render_data, image_magick_result)
+                self._terminal_writer.write("\n")
+                self._terminal_writer.indent -= 1
 
-                framesSinceLastOutput = 0
-                renderData = []
-                tempDir = tempfile.TemporaryDirectory() # change directories for per-frame files
+                frames_since_last_output = 0
+                render_data = []
+                temp_dir = tempfile.TemporaryDirectory() # change directories for per-frame files
 
-            self._terminalWriter.indent -= 1
+            self._terminal_writer.indent -= 1
 
             # End of for(materials)
 
         # Reset scene variables to their original state
-        self._sceneSnapshot.restoreFromSnapshot(context)
+        self._scene_snapshot.restore_from_snapshot(context)
 
         # Do some sanity checks and modify the final output based on the result
-        sanityChecksPassed = self._performEndingSanityChecks(numExpectedJsonFiles, reportingProps)
-        totalElapsedTime = time.clock() - self._startTime
-        timeString = StringUtil.timeAsString(totalElapsedTime)
+        sanity_checks_passed = self._perform_ending_sanity_checks(num_expected_json_files, reporting_props)
+        total_elapsed_time = time.clock() - self._start_time
+        time_string = StringUtil.time_as_string(total_elapsed_time)
 
-        completionMessage = "Rendering complete in " + timeString if sanityChecksPassed else "Rendering FAILED after " + timeString
+        completion_message = "Rendering complete in " + time_string if sanity_checks_passed else "Rendering FAILED after " + time_string
 
         # Final output: show operator total time and a large completion message to be easily noticed
-        termSize = os.get_terminal_size()
-        self._terminalWriter.write("\n")
-        self._terminalWriter.write(termSize.columns * "=" + "\n")
-        self._terminalWriter.write( (termSize.columns // 2) * " " + completionMessage + "\n")
-        self._terminalWriter.write(termSize.columns * "=" + "\n\n")
+        term_size = os.get_terminal_size()
+        self._terminal_writer.write("\n")
+        self._terminal_writer.write(term_size.columns * "=" + "\n")
+        self._terminal_writer.write( (term_size.columns // 2) * " " + completion_message + "\n")
+        self._terminal_writer.write(term_size.columns * "=" + "\n\n")
 
         return
 
-    def _baseOutputDir(self):
+    def _base_output_dir(self):
         if bpy.data.filepath:
-            dir = os.path.dirname(bpy.data.filepath)
-            return os.path.join(dir, "Rendered spritesheets")
+            out_dir = os.path.dirname(bpy.data.filepath)
+            return os.path.join(out_dir, "Rendered spritesheets")
         else:
             # Use the user's home directory
             return os.path.join(str(pathlib.Path.home()), "Rendered spritesheets")
 
-    def _createFilePath(self, props, action, rotationAngle, materialOverride = None, includeMaterial = True):
+    def _create_file_path(self, props, action, rotation_angle, material_override = None, include_material = True):
         if bpy.data.filepath:
             filename, _ = os.path.splitext(os.path.basename(bpy.data.filepath))
         else:
             filename = props.targetObject.name + "_render"
 
-        outputFilePath = os.path.join(self._baseOutputDir(), filename)
+        output_file_path = os.path.join(self._base_output_dir(), filename)
 
         # Make sure output directory exists
-        pathlib.Path(os.path.dirname(outputFilePath)).mkdir(exist_ok = True)
+        pathlib.Path(os.path.dirname(output_file_path)).mkdir(exist_ok = True)
 
-        if materialOverride:
-            materialName = materialOverride.name
+        if material_override:
+            material_name = material_override.name
         else:
-            materialName = props.targetObject.data.materials[0].name if props.useMaterials and len(props.targetObject.data.materials) > 0 else ""
+            material_name = props.targetObject.data.materials[0].name if props.useMaterials and len(props.targetObject.data.materials) > 0 else ""
 
-        if materialName and includeMaterial:
-            outputFilePath += "_" + self._formatStringForFilename(materialName)
-        
+        if material_name and include_material:
+            output_file_path += "_" + self._format_string_for_filename(material_name)
+
         if props.useAnimations and props.separateFilesPerAnimation:
-            outputFilePath += "_" + self._formatStringForFilename(action.name)
+            output_file_path += "_" + self._format_string_for_filename(action.name)
 
         if props.rotateObject and props.separateFilesPerRotation:
-            outputFilePath += "_rot" + str(rotationAngle).zfill(3)
+            output_file_path += "_rot" + str(rotation_angle).zfill(3)
 
-        return outputFilePath
+        return output_file_path
 
-    def _createJsonFile(self, props, reportingProps, enabledMaterialSelections, renderData, imageMagickData):
-        jobId = self._getNextJobId()
-        self._reportJob("JSON dump", "writing JSON attributes", jobId, reportingProps)
+    def _create_json_file(self, props, reporting_props, enabled_material_selections, render_data, image_magick_data):
+        job_id = self._get_next_job_id()
+        self._report_job("JSON dump", "writing JSON attributes", job_id, reporting_props)
 
         if props.useAnimations and props.separateFilesPerAnimation:
-            action = renderData[0]["action"]
+            action = render_data[0]["action"]
         else:
             action = None
 
         if props.rotateObject and props.separateFilesPerRotation:
-            rotation = renderData[0]["rotation"]
+            rotation = render_data[0]["rotation"]
         else:
             rotation = None
 
-        jsonFilePath = self._createFilePath(props, action, rotation, includeMaterial = False) + ".ssdata"
+        json_file_path = self._create_file_path(props, action, rotation, include_material = False) + ".ssdata"
 
         # Since the material isn't part of the file path, we could end up writing each JSON file multiple times.
         # They all have the same data, so just skip writing if that's the case.
-        if jsonFilePath in self.jsonData:
-            self._reportJob("JSON dump", "JSON file already written at " + jsonFilePath, jobId, reportingProps, isSkipped = True)
+        if json_file_path in self.json_data:
+            self._report_job("JSON dump", "JSON file already written at " + json_file_path, job_id, reporting_props, is_skipped = True)
             return
 
-        padding = imageMagickData["args"]["padding"] if "padding" in imageMagickData["args"] else (0, 0)
+        padding = image_magick_data["args"]["padding"] if "padding" in image_magick_data["args"] else (0, 0)
 
-        jsonData = {
+        json_data = {
             "baseObjectName": os.path.splitext(os.path.basename(bpy.data.filepath))[0] if bpy.data.filepath else props.targetObject.name,
             "spriteWidth": props.spriteSize[0],
             "spriteHeight": props.spriteSize[1],
             "paddingWidth": padding[0],
             "paddingHeight": padding[1],
-            "numColumns": imageMagickData["args"]["numColumns"],
-            "numRows": imageMagickData["args"]["numRows"]
+            "numColumns": image_magick_data["args"]["numColumns"],
+            "numRows": image_magick_data["args"]["numRows"]
         }
 
         if props.useMaterials:
             # If using materials, need to reference where the spritesheet for each material is located
-            jsonData["materialData"] = []
+            json_data["materialData"] = []
 
-            for materialSelection in enabledMaterialSelections:
-                imagePathForMaterial = self._createFilePath(props, action, rotation, materialOverride = materialSelection) + ".png"
-                self.outputDir = os.path.dirname(imagePathForMaterial)
-                relativePath = os.path.basename(imagePathForMaterial)
+            for material_selection in enabled_material_selections:
+                image_path = self._create_file_path(props, action, rotation, material_override = material_selection) + ".png"
+                self.output_dir = os.path.dirname(image_path)
+                relative_path = os.path.basename(image_path)
 
-                jsonData["materialData"].append({
-                    "name": materialSelection.name,
-                    "file": relativePath,
-                    "role": materialSelection.role
+                json_data["materialData"].append({
+                    "name": material_selection.name,
+                    "file": relative_path,
+                    "role": material_selection.role
                 })
         else:
             # When not using materials, there's only one image file per JSON file
-            imagePath = self._createFilePath(props, action, rotation) + ".png"
-            self.outputDir = os.path.dirname(imagePath)
+            image_path = self._create_file_path(props, action, rotation) + ".png"
+            self.output_dir = os.path.dirname(image_path)
 
-            jsonData["imageFile"] = os.path.basename(imagePath)
+            json_data["imageFile"] = os.path.basename(image_path)
 
         if props.useAnimations:
-            jsonData["animations"] = []
+            json_data["animations"] = []
         else:
-            jsonData["stills"] = []
+            json_data["stills"] = []
 
-        for inData in renderData:
-            outData = { }
+        for in_data in render_data:
+            out_data = { }
 
             # Animation data (if present)
             if props.useAnimations:
-                if not "action" in inData:
+                if not "action" in in_data:
                     raise RuntimeError("props.useAnimations is enabled, but data object didn't have 'action' key")
 
-                outData["frameRate"] = props.outputFrameRate # the same for all animations, but may not always be
-                outData["name"] = inData["action"].name
-                outData["numFrames"] = inData["numFrames"]
-                outData["rotation"] = inData["rotation"]
+                out_data["frameRate"] = props.outputFrameRate # the same for all animations, but may not always be
+                out_data["name"] = in_data["action"].name
+                out_data["numFrames"] = in_data["numFrames"]
+                out_data["rotation"] = in_data["rotation"]
 
                 # The starting frame may not match the expected value, depending on what order ImageMagick combined
                 # the files in. We need to find the matching file in the ImageMagick arguments to figure out the frame number.
-                outData["startFrame"] = imageMagickData["args"]["inputFiles"].index(inData["firstFrameFilepath"])
-                
-                jsonData["animations"].append(outData)
+                out_data["startFrame"] = image_magick_data["args"]["inputFiles"].index(in_data["firstFrameFilepath"])
+
+                json_data["animations"].append(out_data)
             else:
-                outData["frame"] = imageMagickData["args"]["inputFiles"].index(inData["filepath"])
-                outData["rotation"] = inData["rotation"]
+                out_data["frame"] = image_magick_data["args"]["inputFiles"].index(in_data["filepath"])
+                out_data["rotation"] = in_data["rotation"]
 
-                jsonData["stills"].append(outData)
+                json_data["stills"].append(out_data)
 
-        with open(jsonFilePath, "w") as f:
-            json.dump(jsonData, f, indent = "\t")
+        with open(json_file_path, "w") as f:
+            json.dump(json_data, f, indent = "\t")
 
-        self.jsonData[jsonFilePath] = jsonData
-        self._reportJob("JSON dump", "output is at " + jsonFilePath, jobId, reportingProps, isComplete = True)
+        self.json_data[json_file_path] = json_data
+        self._report_job("JSON dump", "output is at " + json_file_path, job_id, reporting_props, is_complete = True)
 
-    def _countTotalFrames(self, materials, rotations, actions):
-        totalFramesAcrossActions = 0
+    def _count_total_frames(self, materials, rotations, actions):
+        total_frames_across_actions = 0
 
         for action in actions:
             if action is None:
-                totalFramesAcrossActions += 1
+                total_frames_across_actions += 1
             else:
-                frameMin = math.floor(action.frame_range[0])
-                frameMax = math.ceil(action.frame_range[1])
-                numFrames = frameMax - frameMin + 1
-                totalFramesAcrossActions += numFrames
+                frame_min = math.floor(action.frame_range[0])
+                frame_max = math.ceil(action.frame_range[1])
+                num_frames = frame_max - frame_min + 1
+                total_frames_across_actions += num_frames
 
-        return totalFramesAcrossActions * len(materials) * len(rotations)
+        return total_frames_across_actions * len(materials) * len(rotations)
 
-    def _formatStringForFilename(self, string):
+    def _format_string_for_filename(self, string):
         return string.replace(' ', '_').lower()
 
-    def _getNextJobId(self):
-        self._nextJobId += 1
-        return self._nextJobId
+    def _get_next_job_id(self):
+        self._next_job_id += 1
+        return self._next_job_id
 
-    def _nextPowerOfTwo(self, val):
+    def _next_power_of_two(self, val):
         """Returns the smallest power of two which is equal to or greater than val"""
         return 1 if val == 0 else 2 ** math.ceil(math.log2(val))
 
-    def _optimizeCamera(self, context, rotationRoot = None, rotations = None, enabledActions = None, currentAction = None, currentRotation = None, reportJob = True):
+    def _optimize_camera(self, context, rotation_root = None, rotations = None, enabled_actions = None, current_action = None, current_rotation = None, report_job = True):
         props = context.scene.SpritesheetPropertyGroup
-        reportingProps = context.scene.ReportingPropertyGroup
+        reporting_props = context.scene.ReportingPropertyGroup
 
         if not props.controlCamera:
             raise RuntimeError("_optimizeCamera called without controlCamera option enabled")
 
-        jobId = self._getNextJobId()
-        jobTitle = "Optimizing camera"
+        job_id = self._get_next_job_id()
+        job_title = "Optimizing camera"
 
         if props.cameraControlMode == "move_once":
-            if reportJob:
-                self._reportJob(jobTitle, "finding parameters to cover the entire render", jobId, reportingProps)
+            if report_job:
+                self._report_job(job_title, "finding parameters to cover the entire render", job_id, reporting_props)
 
-            CameraUtil.optimizeForAllFrames(context, rotationRoot, rotations, enabledActions)
+            CameraUtil.optimize_for_all_frames(context, rotation_root, rotations, enabled_actions)
         elif props.cameraControlMode == "move_each_frame":
-            if reportJob:
-                self._reportJob(jobTitle, "finding parameters to cover the current frame", jobId, reportingProps)
+            if report_job:
+                self._report_job(job_title, "finding parameters to cover the current frame", job_id, reporting_props)
 
-            CameraUtil.fitCameraToTargetObject(context)
+            CameraUtil.fit_camera_to_target_object(context)
         elif props.cameraControlMode == "move_each_animation":
-            if reportJob:
-                self._reportJob(jobTitle, "finding parameters to cover the current animation", jobId, reportingProps)
+            if report_job:
+                self._report_job(job_title, "finding parameters to cover the current animation", job_id, reporting_props)
 
-            CameraUtil.optimizeForAction(context, currentAction)
+            CameraUtil.optimize_for_action(context, current_action)
         elif props.cameraControlMode == "move_each_rotation":
-            if reportJob:
-                self._reportJob(jobTitle, "finding parameters to cover the current rotation angle", jobId, reportingProps)
+            if report_job:
+                self._report_job(job_title, "finding parameters to cover the current rotation angle", job_id, reporting_props)
 
-            CameraUtil.optimizeForRotation(context, rotationRoot, currentRotation, enabledActions)            
+            CameraUtil.optimize_for_rotation(context, rotation_root, current_rotation, enabled_actions)
 
-        completeMsg = "Camera will render from {}, with an ortho_scale of {}".format(StringUtil.formatNumber(props.renderCamera.location), StringUtil.formatNumber(props.renderCamera.data.ortho_scale))
+        complete_msg = "Camera will render from {}, with an ortho_scale of {}".format(StringUtil.format_number(props.renderCamera.location), StringUtil.format_number(props.renderCamera.data.ortho_scale))
 
-        if reportJob:
-            self._reportJob(jobTitle, completeMsg, jobId, reportingProps, isComplete = True)
+        if report_job:
+            self._report_job(job_title, complete_msg, job_id, reporting_props, is_complete = True)
 
-    def _performEndingSanityChecks(self, numExpectedJsonFiles, reportingProps):
-        jobId = self._getNextJobId()
+    def _perform_ending_sanity_checks(self, num_expected_json_files, reporting_props):
+        job_id = self._get_next_job_id()
 
-        if reportingProps.currentFrameNum != reportingProps.totalNumFrames:
-            self._error = "Expected to render {} frames, but actually rendered {}".format(reportingProps.totalNumFrames, reportingProps.currentFrameNum)
+        if reporting_props.currentFrameNum != reporting_props.totalNumFrames:
+            self._error = "Expected to render {} frames, but actually rendered {}".format(reporting_props.totalNumFrames, reporting_props.currentFrameNum)
             return False
 
         # Make sure all the file paths we wrote in the JSON actually exist
-        self._terminalWriter.write("Rendering complete. Performing sanity checks before ending operation.\n")
-        self._terminalWriter.indent += 1
-        if numExpectedJsonFiles == len(self.jsonData):
-            self._reportJob("Sanity check", "wrote the expected number of JSON files ({})".format(numExpectedJsonFiles), jobId, reportingProps, isComplete = True)
+        self._terminal_writer.write("Rendering complete. Performing sanity checks before ending operation.\n")
+        self._terminal_writer.indent += 1
+        if num_expected_json_files == len(self.json_data):
+            self._report_job("Sanity check", "wrote the expected number of JSON files ({})".format(num_expected_json_files), job_id, reporting_props, is_complete = True)
         else:
-            self._reportJob("Sanity check", "expected to write {} JSON files but found {}".format(numExpectedJsonFiles, len(self.jsonData)), jobId, reportingProps, isError = True)
+            self._report_job("Sanity check", "expected to write {} JSON files but found {}".format(num_expected_json_files, len(self.json_data)), job_id, reporting_props, is_error = True)
             self._error = "An internal error occurred while writing JSON files."
             return False
 
-        jobId = self._getNextJobId()
-        jsonNum = 1
-        for filePath, data in self.jsonData.items():
-            self._reportJob("Sanity check", "validating JSON data {} of {}".format(jsonNum, len(self.jsonData)), jobId, reportingProps)
-            jsonNum += 1
+        job_id = self._get_next_job_id()
+        json_num = 1
+        for _, data in self.json_data.items():
+            self._report_job("Sanity check", "validating JSON data {} of {}".format(json_num, len(self.json_data)), job_id, reporting_props)
+            json_num += 1
 
             # Check that file paths for image files are correct
-            expectedFiles = []
+            expected_files = []
 
             if "imageFile" in data:
-                expectedFiles.append(data["imageFile"])
-            
-            if "materialData" in data:
-                if len(expectedFiles) != 0:
-                    self._reportJob("Sanity check", "JSON should not have both 'imageFile' and 'materialData' keys", jobId, reportingProps, isError = True)
-                    self.report({'ERROR'}, "An internal error occurred while writing JSON files.")
-                    return False
-                    
-                for materialData in data["materialData"]:
-                    expectedFiles.append(materialData["file"])
-            
-            for filePath in expectedFiles:
-                absPath = os.path.join(self.outputDir, filePath)
+                expected_files.append(data["imageFile"])
 
-                if not os.path.isfile(absPath):
-                    self._reportJob("Sanity check", "expected file not found at " + absPath, jobId, reportingProps, isError = True)
+            if "materialData" in data:
+                if len(expected_files) != 0:
+                    self._report_job("Sanity check", "JSON should not have both 'imageFile' and 'materialData' keys", job_id, reporting_props, is_error = True)
                     self._error = "An internal error occurred while writing JSON files."
                     return False
 
-        self._reportJob("Sanity check", "successfully validated JSON data for {} file(s)".format(len(self.jsonData)), jobId, reportingProps, isComplete = True)
-        self._terminalWriter.indent -= 1
+                for material_data in data["materialData"]:
+                    expected_files.append(material_data["file"])
+
+            for file_path in expected_files:
+                abs_path = os.path.join(self.output_dir, file_path)
+
+                if not os.path.isfile(abs_path):
+                    self._report_job("Sanity check", "expected file not found at " + abs_path, job_id, reporting_props, is_error = True)
+                    self._error = "An internal error occurred while writing JSON files."
+                    return False
+
+        self._report_job("Sanity check", "successfully validated JSON data for {} file(s)".format(len(self.json_data)), job_id, reporting_props, is_complete = True)
+        self._terminal_writer.indent -= 1
         return True
 
-    def _progressBar(self, title, numerator, denominator, width = None, showPercentage = True, showNumbers = True, numbersLabel = ""):
-        numbersLabel = " " + numbersLabel if numbersLabel else ""
-        numbersDisplay = "({}/{}{}) ".format(numerator, denominator, numbersLabel) if showNumbers else ""
-        textPrefix = "{title} {numbersDisplay}".format(title = title, numbersDisplay = numbersDisplay)
+    def _progress_bar(self, title, numerator, denominator, width = None, show_percentage = True, show_numbers = True, numbers_label = ""):
+        numbers_label = " " + numbers_label if numbers_label else ""
+        numbers_display = f"({numerator}/{denominator}{numbers_label}) " if show_numbers else ""
+        text_prefix = f"{title} {numbers_display}"
 
         if width is None:
-            termSize = os.get_terminal_size()
-            width = termSize.columns - len(textPrefix) - 10
+            width = os.get_terminal_size().columns - len(text_prefix) - 10
 
-        progressPercent = numerator / denominator
-        completedPlaces = math.floor(progressPercent * width)
-        pendingPlaces = width - completedPlaces
+        progress_percent = numerator / denominator
+        completed_places = math.floor(progress_percent * width)
+        pending_places = width - completed_places
 
-        bar = "[{completed}{pending}]".format(completed = "#" * completedPlaces, pending = "-" * pendingPlaces)
+        bar_string = "[{completed}{pending}]".format(completed = "#" * completed_places, pending = "-" * pending_places)
 
-        if showPercentage:
-            bar = bar + " {}%".format(math.floor(100 * progressPercent))
+        if show_percentage:
+            bar_string = bar_string + " {}%".format(math.floor(100 * progress_percent))
 
-        return textPrefix + bar
+        return text_prefix + bar_string
 
-    def _renderAction(self, context, action, rotation, tempDirPath):
+    def _render_action(self, context, action, rotation, temp_dir_path):
         scene = context.scene
         props = scene.SpritesheetPropertyGroup
-        reportingProps = scene.ReportingPropertyGroup
+        reporting_props = scene.ReportingPropertyGroup
 
         props.targetObject.animation_data.action = action
 
-        frameMin = math.floor(action.frame_range[0])
-        frameMax = math.ceil(action.frame_range[1])
-        numFrames = frameMax - frameMin + 1
+        frame_min = math.floor(action.frame_range[0])
+        frame_max = math.ceil(action.frame_range[1])
+        num_frames = frame_max - frame_min + 1
 
-        actionData = {
+        action_data = {
             "action": action,
             "frameData": [],
             "rotation": rotation
         }
-        
-        numDigits = int(math.log10(frameMax)) + 1
+
+        num_digits = int(math.log10(frame_max)) + 1
 
         if props.controlCamera and props.cameraControlMode == "move_each_animation":
-            self._optimizeCamera(context, currentAction = action)
+            self._optimize_camera(context, current_action = action)
 
         # Go frame-by-frame and render the object
-        jobId = self._getNextJobId()
-        renderedFrames = 0
-        for index in range(frameMin, frameMax + 1):
-            text = "({}/{})".format(index - frameMin + 1, numFrames)
-            self._reportJob("Rendering frames", text, jobId, reportingProps)
+        job_id = self._get_next_job_id()
+        rendered_frames = 0
+        for index in range(frame_min, frame_max + 1):
+            text = "({}/{})".format(index - frame_min + 1, num_frames)
+            self._report_job("Rendering frames", text, job_id, reporting_props)
 
             # Order of properties in filename is important; they need to sort lexicographically
             # in such a way that sequential frames naturally end up sequential in the sorted file list,
@@ -635,171 +635,171 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             if props.rotateObject:
                 filename += "rot" + str(rotation).zfill(3) + "_"
 
-            filename += str(index).zfill(numDigits)
+            filename += str(index).zfill(num_digits)
 
-            filepath = os.path.join(tempDirPath, filename)
+            filepath = os.path.join(temp_dir_path, filename)
 
-            if index == frameMin:
-                actionData["firstFrameFilepath"] = filepath + ".png"
-            
+            if index == frame_min:
+                action_data["firstFrameFilepath"] = filepath + ".png"
+
             scene.frame_set(index)
             scene.render.filepath = filepath
 
-            self._runRenderWithoutStdout(props, reportingProps)
-            renderedFrames += 1
+            self._run_render_without_stdout(props, reporting_props)
+            rendered_frames += 1
 
             # Yield after each frame to let the UI render
             yield
 
-        actionData["numFrames"] = renderedFrames
-        self._reportJob("Rendering frames", "completed rendering {} frames".format(renderedFrames), jobId, reportingProps, isComplete = True)
+        action_data["numFrames"] = rendered_frames
+        self._report_job("Rendering frames", "completed rendering {} frames".format(rendered_frames), job_id, reporting_props, is_complete = True)
 
-        yield actionData
+        yield action_data
 
-    def _renderStill(self, rotationAngle, frameNumber, tempDirPath):
+    def _render_still(self, rotation_angle, frame_number, temp_dir_path):
         # Renders a single frame
         scene = bpy.context.scene
         props = scene.SpritesheetPropertyGroup
-        reportingProps = scene.ReportingPropertyGroup
+        reporting_props = scene.ReportingPropertyGroup
 
-        filename = "out_still_" + str(frameNumber).zfill(4)
+        filename = "out_still_" + str(frame_number).zfill(4)
 
         if props.rotateObject:
-            filename += "_rot" + str(rotationAngle).zfill(3)
+            filename += "_rot" + str(rotation_angle).zfill(3)
 
         filename += ".png"
-        filepath = os.path.join(tempDirPath, filename)
+        filepath = os.path.join(temp_dir_path, filename)
 
         data = {
             "filepath": filepath,
-            "rotation": rotationAngle
+            "rotation": rotation_angle
         }
 
-        jobId = self._getNextJobId()
-        self._reportJob("Single frame", "rendering", jobId, reportingProps)
+        job_id = self._get_next_job_id()
+        self._report_job("Single frame", "rendering", job_id, reporting_props)
 
         scene.render.filepath = filepath
-        self._runRenderWithoutStdout(props, reportingProps)
+        self._run_render_without_stdout(props, reporting_props)
 
-        self._reportJob("Single frame", "rendered successfully", jobId, reportingProps, isComplete = True)
+        self._report_job("Single frame", "rendered successfully", job_id, reporting_props, is_complete = True)
 
         return data
 
-    def _reportJob(self, title, text, jobId, reportingProps, isComplete = False, isError = False, isSkipped = False):
-        if (jobId != self._lastJobId):
-            if jobId < self._lastJobId:
-                self._terminalWriter.write("\nWARNING: incoming job ID {} is smaller than the last job ID {}. This indicates a coding error in the addon.\n\n".format(jobId, self._lastJobId))
+    def _report_job(self, title, text, job_id, reporting_props, is_complete = False, is_error = False, is_skipped = False):
+        if job_id != self._last_job_id:
+            if job_id < self._last_job_id:
+                self._terminal_writer.write("\nWARNING: incoming job ID {} is smaller than the last job ID {}. This indicates a coding error in the addon.\n\n".format(job_id, self._last_job_id))
 
-            self._lastJobId = jobId
-            self._lastJobStartTime = time.clock()
+            self._last_job_id = job_id
+            self._last_job_start_time = time.clock()
 
-        jobTimeSpent = time.clock() - self._lastJobStartTime
-        jobTimeSpentString = "[{}]".format(StringUtil.timeAsString(jobTimeSpent, precision = 2, includeHours = False))
+        job_time_spent = time.clock() - self._last_job_start_time
+        job_time_spent_string = "[{}]".format(StringUtil.time_as_string(job_time_spent, precision = 2, include_hours = False))
 
         msg = title + ": " + text
 
-        if isError:
-            msgPrefix = "[ERROR] "
-            persistMessage = True
-        elif isComplete:
-            msgPrefix = "[DONE] "
-            persistMessage = True
-        elif isSkipped:
-            msgPrefix = "[SKIPPED] "
-            persistMessage = True
+        if is_error:
+            msg_prefix = "[ERROR] "
+            persist_message = True
+        elif is_complete:
+            msg_prefix = "[DONE] "
+            persist_message = True
+        elif is_skipped:
+            msg_prefix = "[SKIPPED] "
+            persist_message = True
         else:
-            msgPrefix = "[ACTIVE] "
-            persistMessage = False
+            msg_prefix = "[ACTIVE] "
+            persist_message = False
 
-        msgPrefix = (msgPrefix + jobTimeSpentString).ljust(22)
-        msg = msgPrefix + msg + "\n"
+        msg_prefix = (msg_prefix + job_time_spent_string).ljust(22)
+        msg = msg_prefix + msg + "\n"
 
         # Show a progress bar estimating completion of the entire operator
-        progressBar = "\n" + self._progressBar("Overall progress", reportingProps.currentFrameNum, reportingProps.totalNumFrames, numbersLabel = "frames rendered") + "\n\n"
+        progress_bar = "\n" + self._progress_bar("Overall progress", reporting_props.currentFrameNum, reporting_props.totalNumFrames, numbers_label = "frames rendered") + "\n\n"
 
         # Show elapsed and remaining time
-        if reportingProps.currentFrameNum > 0:
-            timeElapsedString =   "Time elapsed:   {}".format(StringUtil.timeAsString(reportingProps.elapsedTime, precision = 2))
-            timeRemainingString = "Time remaining: {}".format(StringUtil.timeAsString(reportingProps.estimatedTimeRemaining(), precision = 2))
+        if reporting_props.currentFrameNum > 0:
+            time_elapsed_string =   f"Time elapsed:   {StringUtil.time_as_string(reporting_props.elapsedTime, precision = 2)}"
+            time_remaining_string = f"Time remaining: {StringUtil.time_as_string(reporting_props.estimatedTimeRemaining(), precision = 2)}"
 
             # Make the strings repeat on the right side of the terminal, with a small indent
-            columnsRemaining = os.get_terminal_size().columns - len(timeElapsedString) - 10 
-            fmtString = "{0} {1:>" + str(columnsRemaining) + "}\n"
-            timeElapsedString = fmtString.format(timeElapsedString, timeElapsedString)
+            columns_remaining = os.get_terminal_size().columns - len(time_elapsed_string) - 10
+            fmt_string = "{0} {1:>" + str(columns_remaining) + "}\n"
+            time_elapsed_string = fmt_string.format(time_elapsed_string, time_elapsed_string)
 
-            columnsRemaining = os.get_terminal_size().columns - len(timeRemainingString) - 10 
-            fmtString = "{0} {1:>" + str(columnsRemaining) + "}\n\n"
-            timeRemainingString = fmtString.format(timeRemainingString, timeRemainingString)
+            columns_remaining = os.get_terminal_size().columns - len(time_remaining_string) - 10
+            fmt_string = "{0} {1:>" + str(columns_remaining) + "}\n\n"
+            time_remaining_string = fmt_string.format(time_remaining_string, time_remaining_string)
 
-            timeString = timeElapsedString + timeRemainingString
+            time_string = time_elapsed_string + time_remaining_string
         else:
-            timeString = ""
+            time_string = ""
 
         # Don't persist the progress bar and time or else they'd fill the terminal every time we write
-        self._terminalWriter.write(msg, unpersistedPortion = progressBar + timeString, persistMsg = persistMessage)
+        self._terminal_writer.write(msg, unpersisted_portion = progress_bar + time_string, persist_msg = persist_message)
 
-    def _runRenderWithoutStdout(self, props, reportingProps):
+    def _run_render_without_stdout(self, props, reporting_props):
         """Renders a single frame without printing the norma message to stdout
-        
+
         When saving a rendered image, usually Blender outputs a message like 'Saved <filepath> ...', which clogs the output.
         This method renders without that message being printed."""
 
         if props.controlCamera and props.cameraControlMode == "move_each_frame":
             # Don't report job because this method is always being called inside of another job
-            self._optimizeCamera(bpy.context, reportJob = False)
+            self._optimize_camera(bpy.context, report_job = False)
 
         # Get the original stdout file, close its fd, and open devnull in its place
-        originalStdout = os.dup(1)
+        original_stdout = os.dup(1)
         sys.stdout.flush()
         os.close(1)
         os.open(os.devnull, os.O_WRONLY)
-        
+
         try:
             bpy.ops.render.render(write_still = True)
-            reportingProps.currentFrameNum += 1
+            reporting_props.currentFrameNum += 1
         finally:
             # Reopen stdout in its original position as fd 1
             os.close(1)
-            os.dup(originalStdout)
-            os.close(originalStdout)
-        
-    def _runImageMagick(self, props, reportingProps, action, totalNumFrames, tempDirPath, rotationAngle):
-        jobId = self._getNextJobId()
-        self._reportJob("ImageMagick", "Combining {} frames into spritesheet with ImageMagick".format(totalNumFrames), jobId, reportingProps)
+            os.dup(original_stdout)
+            os.close(original_stdout)
 
-        outputFilePath = self._createFilePath(props, action, rotationAngle) + ".png"
-        imageMagickOutput = ImageMagick.assembleFramesIntoSpritesheet(props.spriteSize, totalNumFrames, tempDirPath, outputFilePath)
+    def _run_image_magick(self, props, reporting_props, action, total_num_frames, temp_dir_path, rotation_angle):
+        job_id = self._get_next_job_id()
+        self._report_job("ImageMagick", "Combining {} frames into spritesheet with ImageMagick".format(total_num_frames), job_id, reporting_props)
 
-        if not imageMagickOutput["succeeded"]:
-            self._error = str(imageMagickOutput["stderr"]).replace("\\n", "\n").replace("\\r", "\r")
-            self._reportJob("ImageMagick", self._error, jobId, reportingProps, isError = True)
+        output_file_path = self._create_file_path(props, action, rotation_angle) + ".png"
+        image_magick_output = ImageMagick.assemble_frames_into_spritesheet(props.spriteSize, total_num_frames, temp_dir_path, output_file_path)
+
+        if not image_magick_output["succeeded"]:
+            self._error = str(image_magick_output["stderr"]).replace("\\n", "\n").replace("\\r", "\r")
+            self._report_job("ImageMagick", self._error, job_id, reporting_props, is_error = True)
         else:
-            msg = "output file is at {}".format(outputFilePath)
-            self._reportJob("ImageMagick", msg, jobId, reportingProps, isComplete = True)
+            msg = "output file is at {}".format(output_file_path)
+            self._report_job("ImageMagick", msg, job_id, reporting_props, is_complete = True)
 
         if props.padToPowerOfTwo:
-            jobId = self._getNextJobId()
-            imageSize = imageMagickOutput["args"]["outputImageSize"]
-            targetSize = (self._nextPowerOfTwo(imageSize[0]), self._nextPowerOfTwo(imageSize[1]))
-            targetSizeStr = "{}x{}".format(targetSize[0], targetSize[1])
+            job_id = self._get_next_job_id()
+            image_size = image_magick_output["args"]["outputImageSize"]
+            target_size = (self._next_power_of_two(image_size[0]), self._next_power_of_two(image_size[1]))
+            target_size_str = "{}x{}".format(target_size[0], target_size[1])
 
-            if targetSize == imageSize:
-                self._reportJob("ImageMagick", "Padding not necessary; image output size {} is already power-of-two".format(targetSizeStr), jobId, reportingProps, isSkipped = True)
+            if target_size == image_size:
+                self._report_job("ImageMagick", "Padding not necessary; image output size {} is already power-of-two".format(target_size_str), job_id, reporting_props, is_skipped = True)
             else:
-                self._reportJob("ImageMagick", "Padding output image to power-of-two size {}".format(targetSizeStr), jobId, reportingProps)
-                ImageMagick.padImageToSize(imageMagickOutput["args"]["outputFilePath"], targetSize)
-                self._reportJob("ImageMagick", "Output image successfully padded to power-of-two size {}".format(targetSizeStr), jobId, reportingProps, isComplete = True)
+                self._report_job("ImageMagick", "Padding output image to power-of-two size {}".format(target_size_str), job_id, reporting_props)
+                ImageMagick.pad_image_to_size(image_magick_output["args"]["outputFilePath"], target_size)
+                self._report_job("ImageMagick", "Output image successfully padded to power-of-two size {}".format(target_size_str), job_id, reporting_props, is_complete = True)
 
                 # Record padding in JSON for tool integration
-                paddingAmount = (targetSize[0] - imageSize[0], targetSize[1] - imageSize[1])
-                imageMagickOutput["args"]["padding"] = paddingAmount
+                padding_amount = (target_size[0] - image_size[0], target_size[1] - image_size[1])
+                image_magick_output["args"]["padding"] = padding_amount
 
-        return imageMagickOutput
+        return image_magick_output
 
-    def _setUpRenderSettings(self):
+    def _set_up_render_settings(self):
         scene = bpy.context.scene
         props = scene.SpritesheetPropertyGroup
-        
+
         scene.render.image_settings.file_format = 'PNG'
         scene.render.image_settings.color_mode = 'RGBA'
         scene.render.film_transparent = True  # Transparent PNG

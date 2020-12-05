@@ -1,6 +1,3 @@
-import bpy
-
-from ui.BaseAddonPanel import BaseAddonPanel
 from util import UIUtil
 
 class SPRITESHEET_PT_MaterialSetPanel():
@@ -22,12 +19,12 @@ class SPRITESHEET_PT_MaterialSetPanel():
         return cls.index < len(props.materialSets)
 
     @classmethod
-    def createSubPanel(cls, index):
-        UIUtil.createPanelType(cls, index)
+    def create_sub_panel(cls, index):
+        UIUtil.create_panel_type(cls, index)
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        materialSet = props.materialSets[self.index]
+        material_set = props.materialSets[self.index]
 
         self.layout.active = props.useMaterials
 
@@ -35,28 +32,28 @@ class SPRITESHEET_PT_MaterialSetPanel():
         row.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
 
         row = self.layout.row()
-        row.prop(materialSet, "name")
+        row.prop(material_set, "name")
 
         row = self.layout.row()
-        row.prop(materialSet, "role")
+        row.prop(material_set, "role")
 
         row = self.layout.row()
         self.template_list(row,
                            "SPRITESHEET_UL_ObjectMaterialPairPropertyList", # Class name
                            "", # List ID (blank to generate)
-                           materialSet, # List items property source
+                           material_set, # List items property source
                            "objectMaterialPairs", # List items property name
-                           materialSet, # List index property source
+                           material_set, # List index property source
                            "selectedObjectMaterialPair", # List index property name
         )
 
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        materialSet = props.materialSets[self.index]
+        material_set = props.materialSets[self.index]
 
-        setLabel = f"Material Set {self.index + 1}"
+        set_label = f"Material Set {self.index + 1}"
 
-        if materialSet.name:
-            setLabel = setLabel + " - " + materialSet.name
+        if material_set.name:
+            set_label = set_label + " - " + material_set.name
 
-        self.layout.label(text = setLabel)
+        self.layout.label(text = set_label)
