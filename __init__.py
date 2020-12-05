@@ -25,10 +25,10 @@ if not ADDON_DIR in sys.path:
 
 from operators import ConfigureRenderCamera
 importlib.reload(ConfigureRenderCamera)
+from operators import ListOperators
+importlib.reload(ListOperators)
 from operators import LocateImageMagick
 importlib.reload(LocateImageMagick)
-from operators import ModifyRenderTargets
-importlib.reload(ModifyRenderTargets)
 from operators import OpenDirectory
 importlib.reload(OpenDirectory)
 from operators import RenderSpritesheet
@@ -155,12 +155,12 @@ classes = [
     # Operators
     SPRITESHEET_OT_ShowAddonPrefsOperator,
     ConfigureRenderCamera.SPRITESHEET_OT_ConfigureRenderCameraOperator,
+    ListOperators.SPRITESHEET_OT_AddMaterialSetOperator,
+    ListOperators.SPRITESHEET_OT_RemoveMaterialSetOperator,
+    ListOperators.SPRITESHEET_OT_AddRenderTargetOperator,
+    ListOperators.SPRITESHEET_OT_RemoveRenderTargetOperator,
     LocateImageMagick.SPRITESHEET_OT_LocateImageMagickOperator,
     OpenDirectory.SPRITESHEET_OT_OpenDirectoryOperator,
-    ModifyRenderTargets.SPRITESHEET_OT_AddMaterialSetOperator,
-    ModifyRenderTargets.SPRITESHEET_OT_RemoveMaterialSetOperator,
-    ModifyRenderTargets.SPRITESHEET_OT_AddRenderTargetOperator,
-    ModifyRenderTargets.SPRITESHEET_OT_RemoveRenderTargetOperator,
     RenderSpritesheet.SPRITESHEET_OT_RenderSpritesheetOperator,
 
     # UI property lists
