@@ -11,17 +11,13 @@ class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
 
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
-        self.layout.alignment = "LEFT"
 
-        #row = self.layout.row()
         self.layout.prop(props, "spriteSize")
 
         row = self.layout.row(heading = "Output Size")
         row.prop(props, "padToPowerOfTwo")
 
         self.layout.separator()
-
-       #row = self.layout.row()
 
         col = self.layout.column(heading = "Separate Files by", align = True)
         col.prop(props, "separateFilesPerAnimation", text = "Animation")

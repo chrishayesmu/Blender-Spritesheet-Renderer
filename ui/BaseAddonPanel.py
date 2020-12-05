@@ -43,6 +43,7 @@ class BaseAddonPanel:
 
 class SPRITESHEET_PT_AddonPanel(bpy.types.Panel):
     """Parent panel that holds all other addon panels when the UI is in the Render Properties area"""
+    bl_idname = "SPRITESHEET_PT_AddonPanel"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "render"

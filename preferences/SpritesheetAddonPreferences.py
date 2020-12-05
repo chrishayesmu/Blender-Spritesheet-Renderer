@@ -27,15 +27,6 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
     prefsFile = os.path.join(os.path.dirname(__file__), "__prefs.json")
     _prefs = {}
 
-    imageMagickPath: bpy.props.StringProperty(
-        name = "ImageMagick Path",
-        subtype = "FILE_PATH",
-        description = "The path to magick.exe in the ImageMagick directory",
-        get = _getter("imageMagickPath", ""),
-        set = _setter("imageMagickPath"),
-        update = _updater()
-    )
-
     displayArea: bpy.props.EnumProperty(
         name = "Addon Display Area",
         description = "Choose where the addon's UI should be displayed",
@@ -46,6 +37,15 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
         get = _getter("displayArea", 0),
         set = _setter("displayArea"),
         update = _updater(reloadAddonOnChange = True)
+    )
+
+    imageMagickPath: bpy.props.StringProperty(
+        name = "ImageMagick Path",
+        subtype = "FILE_PATH",
+        description = "The path to magick.exe in the ImageMagick directory",
+        get = _getter("imageMagickPath", ""),
+        set = _setter("imageMagickPath"),
+        update = _updater()
     )
 
     @classmethod

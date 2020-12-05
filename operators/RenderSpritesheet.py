@@ -18,7 +18,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     """Operator for executing spritesheet rendering. This is a modal operator which is expected to run for a long time."""
     bl_idname = "spritesheet.render"
     bl_label = "Render Spritesheet"
-    bl_description = "Render target object according to the input settings"
+    bl_description = "Render a spritesheet according to the input settings"
 
     renderDisabledReason = ""
 

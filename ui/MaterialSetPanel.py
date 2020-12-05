@@ -10,7 +10,6 @@ class SPRITESHEET_PT_MaterialSetPanel():
     is never actually instantiated. Hence, it does not need to extend any classes like the other panels do, since
     those will be mixed in at runtime."""
 
-    bl_idname = "SPRITESHEET_PT_material_set"
     bl_label = "" # hidden; see draw_header
     bl_parent_id = "SPRITESHEET_PT_materials"
 
