@@ -118,9 +118,11 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
     def onTargetObjectUpdated(self, context):
         # When selecting an object for the first time, auto-detect its associated material and assign it
-        # in all of the material sets, for convenience
+        # in all of the material sets, for convenience; also set its rotation root to itself
         if self.previousObject is None and self.object is not None and hasattr(self.object.data, "materials") and len(self.object.data.materials) > 0:
             props = context.scene.SpritesheetPropertyGroup
+
+            self.rotationRoot = self.object
 
             # Figure out which index this object is, because it's the same in the material sets
             index = list(props.targetObjects).index(self)
@@ -209,7 +211,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     useAnimations: bpy.props.BoolProperty(
         name = "Animate During Render",
         description = "If true, the Target Object will be animated during rendering",
-        default = True
+        default = False
     )
 
     ### Materials data
@@ -224,14 +226,14 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     useMaterials: bpy.props.BoolProperty(
         name = "Render Multiple Materials",
         description = "If true, the target object will be rendered once for each selected material",
-        default = True
+        default = False
     )
     
     ### Render properties
     controlCamera: bpy.props.BoolProperty(
         name = "Control Camera",
         description = "If true, the Render Camera will be moved and adjusted to best fit the Target Object in view",
-        default = True
+        default = False
     )
 
     cameraControlMode: bpy.props.EnumProperty(
