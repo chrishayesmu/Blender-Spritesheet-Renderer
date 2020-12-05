@@ -154,7 +154,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             self._error = "Failed to validate ImageMagick executable. Check that the path is correct in Addon Preferences."
             return
 
-        self._set_up_render_settings()
+        self._set_up_render_settings(context)
 
         self._terminal_writer.clear()
 
@@ -273,7 +273,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
                         self._terminal_writer.indent -= 1
                     else:
-                        still_data = self._render_still(rotation_angle, frames_since_last_output, temp_dir_path)
+                        still_data = self._render_still(context, rotation_angle, frames_since_last_output, temp_dir_path)
                         render_data.append(still_data)
                         frames_since_last_output += 1
 
@@ -645,7 +645,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             scene.frame_set(index)
             scene.render.filepath = filepath
 
-            self._run_render_without_stdout(props, reporting_props)
+            self._run_render_without_stdout(context)
             rendered_frames += 1
 
             # Yield after each frame to let the UI render
@@ -656,9 +656,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         yield action_data
 
-    def _render_still(self, rotation_angle, frame_number, temp_dir_path):
+    def _render_still(self, context, rotation_angle, frame_number, temp_dir_path):
         # Renders a single frame
-        scene = bpy.context.scene
+        scene = context.scene
         props = scene.SpritesheetPropertyGroup
         reporting_props = scene.ReportingPropertyGroup
 
@@ -679,7 +679,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._report_job("Single frame", "rendering", job_id, reporting_props)
 
         scene.render.filepath = filepath
-        self._run_render_without_stdout(props, reporting_props)
+        self._run_render_without_stdout(context)
 
         self._report_job("Single frame", "rendered successfully", job_id, reporting_props, is_complete = True)
 
@@ -738,15 +738,18 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # Don't persist the progress bar and time or else they'd fill the terminal every time we write
         self._terminal_writer.write(msg, unpersisted_portion = progress_bar + time_string, persist_msg = persist_message)
 
-    def _run_render_without_stdout(self, props, reporting_props):
+    def _run_render_without_stdout(self, context):
         """Renders a single frame without printing the norma message to stdout
 
         When saving a rendered image, usually Blender outputs a message like 'Saved <filepath> ...', which clogs the output.
         This method renders without that message being printed."""
 
+        props = context.scene.SpritesheetPropertyGroup
+        reporting_props = context.scene.ReportingPropertyGroup
+
         if props.controlCamera and props.cameraControlMode == "move_each_frame":
             # Don't report job because this method is always being called inside of another job
-            self._optimize_camera(bpy.context, report_job = False)
+            self._optimize_camera(context, report_job = False)
 
         # Get the original stdout file, close its fd, and open devnull in its place
         original_stdout = os.dup(1)
@@ -796,8 +799,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         return image_magick_output
 
-    def _set_up_render_settings(self):
-        scene = bpy.context.scene
+    def _set_up_render_settings(self, context):
+        scene = context.scene
         props = scene.SpritesheetPropertyGroup
 
         scene.render.image_settings.file_format = 'PNG'
