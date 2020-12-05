@@ -40,29 +40,10 @@ importlib.reload(Prefs)
 from property_groups import SpritesheetPropertyGroup
 importlib.reload(SpritesheetPropertyGroup)
 
-# UI panels
-from ui import BaseAddonPanel
-importlib.reload(BaseAddonPanel)
-from ui import AnimationsPanel
-importlib.reload(AnimationsPanel)
-from ui import CameraPanel
-importlib.reload(CameraPanel)
-from ui import OutputPropertiesPanel
-importlib.reload(OutputPropertiesPanel)
-from ui import JobManagementPanel
-importlib.reload(JobManagementPanel)
-from ui import MaterialsPanel
-importlib.reload(MaterialsPanel)
-from ui import MaterialSetPanel
-importlib.reload(MaterialSetPanel)
-from ui import RotationOptionsPanel
-importlib.reload(RotationOptionsPanel)
-from ui import TargetObjectsPanel
-importlib.reload(TargetObjectsPanel)
-
-# Other UI
-from ui import PropertyList
-importlib.reload(PropertyList)
+import ui_lists
+importlib.reload(ui_lists)
+import ui_panels
+importlib.reload(ui_panels)
 
 from util import Bounds
 importlib.reload(Bounds)
@@ -111,7 +92,7 @@ def initialize_collections(_unused):
         props.useMaterials = use_materials
 
     for i in range(0, len(props.materialSets)):
-        MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
+        ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
 
     if len(props.targetObjects) == 0:
         bpy.ops.spritesheet.add_render_target()
@@ -166,20 +147,20 @@ classes = [
     RenderSpritesheet.SPRITESHEET_OT_RenderSpritesheetOperator,
 
     # UI property lists
-    PropertyList.SPRITESHEET_UL_AnimationSelectionPropertyList,
-    PropertyList.SPRITESHEET_UL_ObjectMaterialPairPropertyList,
-    PropertyList.SPRITESHEET_UL_RenderTargetPropertyList,
-    PropertyList.SPRITESHEET_UL_RotationRootPropertyList,
+    ui_lists.SPRITESHEET_UL_AnimationSelectionPropertyList,
+    ui_lists.SPRITESHEET_UL_ObjectMaterialPairPropertyList,
+    ui_lists.SPRITESHEET_UL_RenderTargetPropertyList,
+    ui_lists.SPRITESHEET_UL_RotationRootPropertyList,
 
     # UI panels
-    BaseAddonPanel.SPRITESHEET_PT_AddonPanel,
-    TargetObjectsPanel.SPRITESHEET_PT_TargetObjectsPanel,
-    AnimationsPanel.SPRITESHEET_PT_AnimationsPanel,
-    CameraPanel.SPRITESHEET_PT_CameraPanel,
-    MaterialsPanel.SPRITESHEET_PT_MaterialsPanel,
-    RotationOptionsPanel.SPRITESHEET_PT_RotationOptionsPanel,
-    OutputPropertiesPanel.SPRITESHEET_PT_OutputPropertiesPanel,
-    JobManagementPanel.SPRITESHEET_PT_JobManagementPanel
+    ui_panels.SPRITESHEET_PT_AddonPanel,
+    ui_panels.SPRITESHEET_PT_TargetObjectsPanel,
+    ui_panels.SPRITESHEET_PT_AnimationsPanel,
+    ui_panels.SPRITESHEET_PT_CameraPanel,
+    ui_panels.SPRITESHEET_PT_MaterialsPanel,
+    ui_panels.SPRITESHEET_PT_RotationOptionsPanel,
+    ui_panels.SPRITESHEET_PT_OutputPropertiesPanel,
+    ui_panels.SPRITESHEET_PT_JobManagementPanel
 ]
 
 timers = []

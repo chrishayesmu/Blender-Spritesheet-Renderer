@@ -1,6 +1,6 @@
 import bpy
 
-from ui.MaterialSetPanel import SPRITESHEET_PT_MaterialSetPanel as MaterialSetPanel
+import ui_panels
 
 class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_material_set"
@@ -21,7 +21,7 @@ class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
 
         # Register a new UI panel to display this material set
         index = len(props.materialSets) - 1
-        MaterialSetPanel.create_sub_panel(index)
+        ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(index)
 
         return {"FINISHED"}
 

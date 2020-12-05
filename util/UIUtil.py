@@ -1,7 +1,7 @@
 import bpy
 import textwrap
 
-from ui.BaseAddonPanel import BaseAddonPanel
+import ui_panels
 from util import Register
 
 _created_types = []
@@ -25,7 +25,7 @@ def create_panel_type(panel_type, index, label = None):
 
     if not new_type:
         new_type = type(bl_id, # new type name
-                    (bpy.types.Panel, panel_type, BaseAddonPanel), # base types
+                    (bpy.types.Panel, panel_type, ui_panels.BaseAddonPanel), # base types
                     { "bl_idname": bl_id, "bl_label": label, "index": index } # new type properties
                 )
 
