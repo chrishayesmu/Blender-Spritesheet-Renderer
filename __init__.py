@@ -104,7 +104,11 @@ def initialize_collections(_unused):
     props = bpy.context.scene.SpritesheetPropertyGroup
 
     if len(props.materialSets) == 0:
+        # spritesheet.add_material_set's poll method requires useMaterials to be true, so temporarily set it
+        use_materials = props.useMaterials
+        props.useMaterials = True
         bpy.ops.spritesheet.add_material_set()
+        props.useMaterials = use_materials
 
     for i in range(0, len(props.materialSets)):
         MaterialSetPanel.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
