@@ -101,7 +101,7 @@ class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
         self.layout.active = props.controlCamera
 
         row = self.layout.row()
-        row.prop_search(props, "renderCamera", bpy.data, "objects")
+        row.prop_search(props, "renderCamera", bpy.data, "cameras")
 
         row = self.layout.row()
         row.prop(props, "cameraControlMode")

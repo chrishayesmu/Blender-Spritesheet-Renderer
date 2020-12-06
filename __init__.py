@@ -64,6 +64,9 @@ importlib.reload(TerminalOutput)
 from util import UIUtil
 importlib.reload(UIUtil)
 
+import utils
+importlib.reload(utils)
+
 # This operator is in the main file so it has the correct module path
 class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
     bl_idname = "spritesheet.showprefs"

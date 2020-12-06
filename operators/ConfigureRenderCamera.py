@@ -8,7 +8,7 @@ class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
         props = context.scene.SpritesheetPropertyGroup
 
         if props.renderCamera:
-            props.renderCamera.data.type = "ORTHO"
+            props.renderCamera.type = "ORTHO"
             return {"FINISHED"}
 
         return {"CANCELLED"}

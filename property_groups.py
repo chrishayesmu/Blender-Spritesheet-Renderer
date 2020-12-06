@@ -231,7 +231,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         default = False
     )
 
-    ### Render properties
+    ### Camera options
     controlCamera: bpy.props.BoolProperty(
         name = "Control Camera",
         description = "If true, the Render Camera will be moved and adjusted to best fit the Target Object in view",
@@ -246,6 +246,13 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         set = _set_camera_control_mode
     )
 
+    renderCamera: bpy.props.PointerProperty(
+        name = "Render Camera",
+        description = "The camera to control during rendering",
+        type = bpy.types.Object
+    )
+
+    ### Rotation options
     rotateObject: bpy.props.BoolProperty(
         name = "Rotate Objects",
         description = "Whether to rotate the target objects. All objects will be rotated simultaneously, but you may choose an object to rotate each around (such as a parent or armature)"
@@ -264,14 +271,11 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         type = bpy.types.Object
     )
 
-    ### Scene properties
-    # TODO restrict this to camera objects, using the camera's name to look up the object
-    renderCamera: bpy.props.PointerProperty(
-        name = "Render Camera",
-        description = "The camera to use for rendering; defaults to the scene's camera if unset",
-        type = bpy.types.Object
+    selectedRotationRootIndex: bpy.props.IntProperty(
+        get = lambda self: -1
     )
 
+    ### Target objects
     targetObject: bpy.props.PointerProperty(
         name = "Target Object",
         description = "The object which will be animated and rendered into the spritesheet",
@@ -284,10 +288,6 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     selectedTargetObjectIndex: bpy.props.IntProperty()
-
-    selectedRotationRootIndex: bpy.props.IntProperty(
-        get = lambda self: -1
-    )
 
     ### Output file properties
     padToPowerOfTwo: bpy.props.BoolProperty(

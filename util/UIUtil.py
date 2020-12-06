@@ -25,9 +25,9 @@ def create_panel_type(panel_type, index, label = None):
 
     if not new_type:
         new_type = type(bl_id, # new type name
-                    (bpy.types.Panel, panel_type, ui_panels.BaseAddonPanel), # base types
-                    { "bl_idname": bl_id, "bl_label": label, "index": index } # new type properties
-                )
+                        (bpy.types.Panel, panel_type, ui_panels.BaseAddonPanel), # base types
+                        { "bl_idname": bl_id, "bl_label": label, "index": index } # new type properties
+                   )
 
     if new_type not in _created_types:
         _created_types.append(new_type)
@@ -47,6 +47,6 @@ def unregister_subpanels():
     _created_types.clear()
 
 def wrap_text_in_region(context, text):
-    width = context.region.width - 10
-    wrapper = textwrap.TextWrapper(width = int(width / 7))
+    width = context.region.width
+    wrapper = textwrap.TextWrapper(width = int(width / 6.5))
     return wrapper.wrap(text = text)
