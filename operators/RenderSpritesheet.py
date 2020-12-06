@@ -7,6 +7,8 @@ import pathlib
 import sys
 import tempfile
 import time
+import traceback
+from typing import Optional, Tuple
 
 import preferences
 
@@ -29,47 +31,67 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # For some reason, if an error occurs in this method, Blender won't report it.
         # So the whole thing is wrapped in a try/except block so we can know what happened.
         try:
-            props = context.scene.SpritesheetPropertyGroup
-            enabled_action_selections = [a for a in props.animationSelections if a.isSelectedForExport]
-            enabled_material_selections = [ms for ms in props.materialSelections if ms.isSelectedForExport]
+            validators = [
+                cls._validate_image_magick,
+                cls._validate_target_objects,
+                cls._validate_animation_options,
+                cls._validate_camera_options,
+                cls._validate_material_options
+            ]
 
-            reason = ""
+            for validator in validators:
+                is_valid, cls.renderDisabledReason = validator(context)
 
-            is_valid, error = cls._validate_target_objects(context)
+                if not is_valid:
+                    return False
 
-            if not is_valid:
-                cls.renderDisabledReason = error
-                return False
-
-            is_valid, error = cls._validate_material_options(context)
-
-            if not is_valid:
-                cls.renderDisabledReason = error
-                return False
-
-            if props.controlCamera and not props.renderCamera:
-                reason = "'Control Camera' is enabled, but Render Camera is not set."
-            elif not preferences.PrefsAccess.image_magick_path:
-                reason = "ImageMagick path is not set in Addon Preferences."
-            elif props.useAnimations and all(not obj.object.animation_data for obj in props.targetObjects):
-                reason = "'Control Animations' is enabled, but none of the Target Objects have animation data."
-            elif props.useAnimations and len(enabled_action_selections) == 0:
-                reason = "'Control Animations' is enabled, but no animations have been selected for use."
-            elif props.useMaterials and len(enabled_material_selections) == 0:
-                reason = "'Control Materials' is enabled, but no materials have been selected for use."
-            elif props.controlCamera and props.renderCamera and props.renderCamera.data.type != "ORTHO":
-                reason = "'Control Render Camera' is currently only supported for orthographic cameras."
-
-            SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason = reason
-
-            return not reason
-        except Exception as e:
-            print("Error occurred in RenderSpritesheetOperator.poll")
-            print(e)
+            cls.renderDisabledReason = ""
+            return True
+        except:
+            traceback.print_exc()
             return False
 
     @classmethod
-    def _validate_material_options(cls, context):
+    def _validate_animation_options(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
+        props = context.scene.SpritesheetPropertyGroup
+
+        if not props.useAnimations:
+            return (True, None)
+
+        if all(not obj.object.animation_data for obj in props.targetObjects):
+            return (False, "'Control Animations' is enabled, but none of the Target Objects have animation data.")
+
+        enabled_action_selections = [a for a in props.animationSelections if a.isSelectedForExport]
+
+        if len(enabled_action_selections) == 0:
+            return (False, "'Control Animations' is enabled, but no animations have been selected for use.")
+
+        return (True, None)
+
+    @classmethod
+    def _validate_camera_options(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
+        props = context.scene.SpritesheetPropertyGroup
+
+        if not props.controlCamera:
+            return (True, None)
+
+        if not props.renderCamera:
+            return (False, "'Control Camera' is enabled, but Render Camera is not set.")
+
+        if props.renderCamera.type != "ORTHO":
+            return (False, "'Control Camera' is currently only supported for orthographic cameras.")
+
+        return (True, None)
+
+    @classmethod
+    def _validate_image_magick(cls, _context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
+        if not preferences.PrefsAccess.image_magick_path:
+            return (False, "ImageMagick path is not set in Addon Preferences.")
+
+        return (True, None)
+
+    @classmethod
+    def _validate_material_options(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
         if not props.useMaterials:
@@ -95,7 +117,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
             num_material_slots = len(obj.data.materials) if hasattr(obj.data, "materials") else 0
             if num_material_slots > 1:
-                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{obj.name}\") has {num_material_slots}. (You may need to select child objects instead.)")
+                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{obj.name}\") has {num_material_slots}. "
+                              + "(You may need to select child objects instead, or split your mesh by material.)")
 
             if num_material_slots == 0:
                 return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{obj.name}\") has none.")
@@ -103,7 +126,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         return (True, None)
 
     @classmethod
-    def _validate_target_objects(cls, context):
+    def _validate_target_objects(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
         if not props.targetObjects or len(props.targetObjects) == 0:
@@ -116,7 +139,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 return (False, f"Target Object slot #{index + 1} has no object selected. If unwanted, remove the slot.")
 
         return (True, None)
-
 
     def invoke(self, context, _):
         reporting_props = context.scene.ReportingPropertyGroup
