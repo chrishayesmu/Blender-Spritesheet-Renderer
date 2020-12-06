@@ -5,6 +5,7 @@ import importlib
 import math
 import os
 import sys
+from typing import Any, Callable, List, Type, Union
 
 bl_info = {
     "name": "Spritesheet Renderer",
@@ -126,7 +127,7 @@ def reset_reporting_props(_unused):
     reporting_props.systemType = FileSystemUtil.get_system_type()
     reporting_props.totalNumFrames = 0
 
-classes = [
+classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.types.Operator]]] = [
     # Property groups
     property_groups.AnimationSelectionPropertyGroup,
     property_groups.MaterialSelectionPropertyGroup,
@@ -166,7 +167,6 @@ classes = [
     ui_panels.SPRITESHEET_PT_JobManagementPanel
 ]
 
-timers = []
 
 def register():
     for cls in classes:
@@ -202,7 +202,9 @@ def unregister():
     for cls in reversed(classes):
         Register.unregister_class(cls)
 
-def start_timer(func, make_partial = False, first_interval = 0, is_persistent = False):
+timers: List[Callable] = []
+
+def start_timer(func: Callable, make_partial: bool = False, first_interval: float = 0, is_persistent: bool = False):
     if make_partial:
         func = functools.partial(func, None)
 

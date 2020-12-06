@@ -1,21 +1,22 @@
 import bpy
 import textwrap
+from typing import List, Type
 
 import ui_panels
 from util import Register
 
-_created_types = []
+_created_types: List[Type[bpy.types.Panel]] = []
 
-def create_panel_type(panel_type, index, label = None):
+def create_panel_type(panel_type: Type[bpy.types.Panel], index: int, label: str = None):
     """Dynamically defines a new Panel type based on the type provided."""
 
-    bl_id = panel_type.bl_idname if hasattr(panel_type, "bl_idname") else panel_type.__name__
+    bl_id: str = panel_type.bl_idname if hasattr(panel_type, "bl_idname") else panel_type.__name__
 
     bl_id = f"{bl_id}_{index}"
 
     # Make sure this type/index combo isn't already created. Even if it is, we want
     # to attempt to register it again, because sometimes Blender loses them on loads.
-    new_type = None
+    new_type: Type[bpy.types.Panel] = None
     for cls in panel_type.__subclasses__():
         if cls.bl_idname == bl_id:
             new_type = cls
@@ -46,7 +47,7 @@ def unregister_subpanels():
 
     _created_types.clear()
 
-def wrap_text_in_region(context, text):
+def wrap_text_in_region(context: bpy.types.Context, text: str):
     width = context.region.width
     wrapper = textwrap.TextWrapper(width = int(width / 6.5))
     return wrapper.wrap(text = text)
