@@ -20,6 +20,7 @@ def _on_update(self, _, reload_addon_on_change):
         json.dump(self._prefs, f)
 
     if reload_addon_on_change:
+        # FIXME: when moving from render properties space to 3D viewport, the empty parent panel is remaining in the properties space
         bpy.ops.preferences.addon_enable(module=SpritesheetAddonPreferences.bl_idname)
 
 def _updater(reload_addon_on_change = False):

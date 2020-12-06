@@ -1,5 +1,6 @@
 import bpy
 import math
+from typing import Any, Optional
 
 import preferences
 
@@ -14,7 +15,9 @@ class BaseAddonPanel:
 
     @classmethod
     def preregister(cls):
-        display_area = preferences.PrefsAccess.display_area
+        # pylint is having trouble telling that display_area is a getter and think it's a callable
+        # pylint: disable=comparison-with-callable
+        display_area: str = preferences.PrefsAccess.display_area
 
         # Despite reloading all the modules, somehow some of this class data is being retained between
         # disabling/re-enabling the addon, so we set everything each time to be safe
@@ -33,7 +36,16 @@ class BaseAddonPanel:
         else:
             raise ValueError("Unrecognized displayArea value: {}".format(display_area))
 
-    def template_list(self, layout, listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, add_op = None, remove_op = None):
+    def error_box(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str) -> bpy.types.UILayout:
+        box = layout.box()
+        row = box.row(align = True)
+        row.label(text = "", icon = "ERROR")
+
+        self.wrapped_label(context, row, text)
+
+        return box
+
+    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, add_op: Optional[str] = None, remove_op: Optional[str] = None):
         list_obj = getattr(dataptr, propname)
 
         # Mostly passthrough but with a couple of standardized params
@@ -47,6 +59,14 @@ class BaseAddonPanel:
 
             if remove_op:
                 col.operator(remove_op, text = "", icon = "REMOVE")
+
+    def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str):
+        lines = UIUtil.wrap_text_in_region(context, text)
+
+        col = layout.column(align = True)
+        col.scale_y = .7 # bring text lines a little closer together
+        for line in lines:
+            col.label(text = line)
 
 class SPRITESHEET_PT_AddonPanel(bpy.types.Panel):
     """Parent panel that holds all other addon panels when the UI is in the Render Properties area"""
@@ -156,7 +176,7 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
 
                 # Don't show error message if a job is still running, it would be misleading
                 if reporting_props.lastErrorMessage:
-                    self.draw_last_job_error_message(context)
+                    self.error_box(context, self.layout, f"Last job ended in error: {reporting_props.lastErrorMessage}")
 
     def draw_active_job_status(self, reporting_props):
         row = self.layout.row()
@@ -175,47 +195,8 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
         time_remaining_str = StringUtil.time_as_string(time_remaining) if time_remaining is not None else "Calculating.."
         row.label(text = f"Estimated time remaining: {time_remaining_str}")
 
-    def draw_last_job_error_message(self, context):
-        reporting_props = context.scene.ReportingPropertyGroup
-
-        row = self.layout.row()
-        box = row.box()
-
-        # First column just has an error icon
-        row = box.row()
-        row.scale_y = 0.7 # shrink so lines of text appear closer together
-
-        col = row.column()
-        col.label(icon = "ERROR")
-        col.scale_x = .75 # adjust spacing from icon to text
-
-        col = row.column() # text column
-
-        msg = "Last job ended in error: " + reporting_props.lastErrorMessage
-
-        wrapped_message_lines = UIUtil.wrap_text_in_region(context, msg)
-        for line in wrapped_message_lines:
-            row = col.row()
-            row.label(text = line)
-
-    def draw_render_disabled_reason(self, context):
-        row = self.layout.row()
-        box = row.box()
-
-        # First column just has an error icon
-        row = box.row()
-        row.scale_y = 0.7 # shrink so lines of text appear closer together
-
-        col = row.column()
-        col.label(icon = "ERROR")
-        col.scale_x = .75 # adjust spacing from icon to text
-
-        col = row.column() # text column
-
-        wrapped_message_lines = UIUtil.wrap_text_in_region(context, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason)
-        for line in wrapped_message_lines:
-            row = col.row()
-            row.label(text = line)
+    def draw_render_disabled_reason(self, context: bpy.types.Context):
+        box = self.error_box(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason)
 
         # Hacky: check for keywords in the error string to expose some functionality
         reason_lower = SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason.lower()
@@ -353,6 +334,9 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
 
         row = self.layout.row()
         row.prop(props, "rotationNumber")
+
+        if 360 % props.rotationNumber != 0:
+            self.error_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.")
 
         row = self.layout.row()
         self.template_list(row,
