@@ -87,7 +87,7 @@ class MaterialSelectionPropertyGroup(bpy.types.PropertyGroup):
 class ObjectMaterialPairPropertyGroup(bpy.types.PropertyGroup):
     materialName: bpy.props.EnumProperty(
         name = "Material Name",
-        description = "TBD",
+        description = "Which material will be applied to this object while this material set is rendering.",
         items = get_material_name_options
     )
 

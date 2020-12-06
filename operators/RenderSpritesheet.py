@@ -1,4 +1,5 @@
 import bpy
+import collections
 import json
 import math
 import os
@@ -28,29 +29,32 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # For some reason, if an error occurs in this method, Blender won't report it.
         # So the whole thing is wrapped in a try/except block so we can know what happened.
         try:
-            scene = context.scene
-            props = scene.SpritesheetPropertyGroup
+            props = context.scene.SpritesheetPropertyGroup
             enabled_action_selections = [a for a in props.animationSelections if a.isSelectedForExport]
             enabled_material_selections = [ms for ms in props.materialSelections if ms.isSelectedForExport]
 
             reason = ""
 
-            if not props.targetObject:
-                reason = "Target Object is not set."
-            elif not props.renderCamera:
-                reason = "Render Camera is not set."
+            is_valid, error = cls._validate_target_objects(context)
+
+            if not is_valid:
+                cls.renderDisabledReason = error
+                return False
+
+            is_valid, error = cls._validate_material_options(context)
+
+            if not is_valid:
+                cls.renderDisabledReason = error
+                return False
+
+            if props.controlCamera and not props.renderCamera:
+                reason = "'Control Camera' is enabled, but Render Camera is not set."
             elif not preferences.PrefsAccess.image_magick_path:
                 reason = "ImageMagick path is not set in Addon Preferences."
-            elif props.useAnimations and not props.targetObject.animation_data:
-                reason = "'Control Animations' is enabled, but Target Object has no animation data."
+            elif props.useAnimations and all(not obj.object.animation_data for obj in props.targetObjects):
+                reason = "'Control Animations' is enabled, but none of the Target Objects have animation data."
             elif props.useAnimations and len(enabled_action_selections) == 0:
                 reason = "'Control Animations' is enabled, but no animations have been selected for use."
-            elif props.separateFilesPerAnimation and not props.useAnimations:
-                reason = "'Separate Files Per Animation' is enabled, but 'Control Animations' is not."
-            elif props.separateFilesPerRotation and not props.rotateObject:
-                reason = "'Separate Files Per Rotation' is enabled, but 'Rotate Object' is not."
-            elif props.useMaterials and len(props.targetObject.data.materials) != 1:
-                reason = "If 'Control Materials' is enabled, Target Object must have exactly 1 material slot."
             elif props.useMaterials and len(enabled_material_selections) == 0:
                 reason = "'Control Materials' is enabled, but no materials have been selected for use."
             elif props.controlCamera and props.renderCamera and props.renderCamera.data.type != "ORTHO":
@@ -63,6 +67,56 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             print("Error occurred in RenderSpritesheetOperator.poll")
             print(e)
             return False
+
+    @classmethod
+    def _validate_material_options(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if not props.useMaterials:
+            return (True, None)
+
+        if len(props.materialSets) == 0:
+            return (False, "'Control Materials' is enabled, but no material sets have been created.")
+
+        # Check that each material set role is only used once, except for Other
+        material_sets_by_role = collections.defaultdict(list)
+        for set_index, material_set in enumerate(props.materialSets):
+            material_sets_by_role[material_set.role].append(set_index)
+
+        for role, sets in material_sets_by_role.items():
+            if len(sets) > 1 and role != "other":
+                # TODO transform role into its user-facing name in error message
+                set_indices = StringUtil.join_with_commas([str(index + 1) for index in sets])
+                return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role}'. This role can only be used once.")
+
+        # Check each Target Object's material slots
+        for index, o in enumerate(props.targetObjects):
+            obj = o.object
+
+            num_material_slots = len(obj.data.materials) if hasattr(obj.data, "materials") else 0
+            if num_material_slots > 1:
+                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{obj.name}\") has {num_material_slots}. (You may need to select child objects instead.)")
+
+            if num_material_slots == 0:
+                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{obj.name}\") has none.")
+
+        return (True, None)
+
+    @classmethod
+    def _validate_target_objects(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if not props.targetObjects or len(props.targetObjects) == 0:
+            return (False, "There are no Target Objects set.")
+
+        for index, o in enumerate(props.targetObjects):
+            obj = o.object
+
+            if obj is None:
+                return (False, f"Target Object slot #{index + 1} has no object selected. If unwanted, remove the slot.")
+
+        return (True, None)
+
 
     def invoke(self, context, _):
         reporting_props = context.scene.ReportingPropertyGroup

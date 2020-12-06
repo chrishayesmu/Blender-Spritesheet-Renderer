@@ -323,9 +323,16 @@ class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
         self.layout.separator()
 
         col = self.layout.column(heading = "Separate Files by", align = True)
-        col.prop(props, "separateFilesPerAnimation", text = "Animation")
-        col.prop(props, "separateFilesPerRotation", text = "Rotation")
 
+        subcol = col.column()
+        subcol.enabled = props.useAnimations
+        subcol.prop(props, "separateFilesPerAnimation", text = "Animation")
+
+        subcol = col.column()
+        subcol.enabled = props.rotateObject
+        subcol.prop(props, "separateFilesPerRotation", text = "Rotation")
+
+        # Files are always separated by material set; this can't be changed
         subcol = col.column()
         subcol.enabled = False
         subcol.prop(props, "separateFilesPerMaterial", text = "Material Set")

@@ -7,6 +7,19 @@ def format_number(val, precision = 3):
     else:
         return round(val, precision)
 
+def join_with_commas(elements, separator = ", "):
+    if len(elements) == 0:
+        raise ValueError("argument contains no elements")
+
+    if len(elements) == 1:
+        return elements[0]
+
+    if len(elements) == 2:
+        return elements[0] + " and " + elements[1]
+
+    # Join all but the last element, then add the last separately
+    return separator.join(elements[:-1]) + separator + "and " + elements[-1]
+
 def time_as_string(time_in_seconds, precision = 0, include_hours = True):
     if include_hours:
         hours = math.floor(time_in_seconds / 3600)
