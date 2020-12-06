@@ -1,3 +1,5 @@
+# This branch is in the middle of a major overhaul and is non-functional.
+
 # Overview
 
 **Spritesheet Renderer** is a Blender add-on designed to automate the process of transforming a 3D model into a set of 2D images in the form of a spritesheet, generally for use in a game engine, though not exclusively.
