@@ -1,20 +1,20 @@
 import bpy
 import json
 import os
+from typing import Any, Callable, Dict
 
-
-def _getter(key, default_value):
+def _getter(key: str, default_value: Any) -> Callable[[SpritesheetAddonPreferences], Any]:
     #pylint: disable=protected-access
     return lambda self: self._prefs[key] if key in self._prefs else default_value
 
-def _setter(key):
+def _setter(key: str) -> Callable[[SpritesheetAddonPreferences, Any], None]:
     return (lambda self, value: _set(self, key, value))
 
-def _set(obj, key, value):
+def _set(obj: SpritesheetAddonPreferences, key: str, value: Any):
     #pylint: disable=protected-access
     obj._prefs[key] = value
 
-def _on_update(self, _context, reload_addon_on_change):
+def _on_update(self: SpritesheetAddonPreferences, _context: bpy.types.Context, reload_addon_on_change: bool = False):
     #pylint: disable=protected-access
     with open(self.prefsFile, "w") as f:
         json.dump(self._prefs, f)
@@ -22,14 +22,14 @@ def _on_update(self, _context, reload_addon_on_change):
     if reload_addon_on_change:
         bpy.ops.preferences.addon_enable(module=SpritesheetAddonPreferences.bl_idname)
 
-def _updater(reload_addon_on_change = False):
+def _updater(reload_addon_on_change = False) -> Callable[[SpritesheetAddonPreferences, bpy.types.Context], None]:
     return lambda self, context: _on_update(self, context, reload_addon_on_change)
 
 class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = os.path.basename(os.path.dirname(__file__))
 
-    prefsFile = os.path.join(os.path.dirname(__file__), "__prefs.json")
-    _prefs = {}
+    prefsFile: str = os.path.join(os.path.dirname(__file__), "__prefs.json")
+    _prefs: Dict[str, Any] = {}
 
     displayArea: bpy.props.EnumProperty(
         name = "Addon Display Area",
@@ -62,7 +62,7 @@ class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
             # If the JSON file is malformed, we'll just load defaults
             pass
 
-    def draw(self, _):
+    def draw(self, _context):
         row = self.layout.row()
         row.prop(self, "displayArea")
 
@@ -85,7 +85,7 @@ class PrefsAccess():
         return bpy.context.preferences.addons[SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath
 
     @image_magick_path.setter
-    def image_magick_path(self, value):
+    def image_magick_path(self, value: str):
         bpy.context.preferences.addons[SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath = value
 
 # Replace class with a singleton instance
