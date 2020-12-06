@@ -3,18 +3,18 @@ import json
 import os
 from typing import Any, Callable, Dict
 
-def _getter(key: str, default_value: Any) -> Callable[[SpritesheetAddonPreferences], Any]:
+def _getter(key: str, default_value: Any) -> Callable[["SpritesheetAddonPreferences"], Any]:
     #pylint: disable=protected-access
     return lambda self: self._prefs[key] if key in self._prefs else default_value
 
-def _setter(key: str) -> Callable[[SpritesheetAddonPreferences, Any], None]:
+def _setter(key: str) -> Callable[["SpritesheetAddonPreferences", Any], None]:
     return (lambda self, value: _set(self, key, value))
 
-def _set(obj: SpritesheetAddonPreferences, key: str, value: Any):
+def _set(obj: "SpritesheetAddonPreferences", key: str, value: Any):
     #pylint: disable=protected-access
     obj._prefs[key] = value
 
-def _on_update(self: SpritesheetAddonPreferences, _context: bpy.types.Context, reload_addon_on_change: bool = False):
+def _on_update(self: "SpritesheetAddonPreferences", _context: bpy.types.Context, reload_addon_on_change: bool = False):
     #pylint: disable=protected-access
     with open(self.prefsFile, "w") as f:
         json.dump(self._prefs, f)
@@ -22,7 +22,7 @@ def _on_update(self: SpritesheetAddonPreferences, _context: bpy.types.Context, r
     if reload_addon_on_change:
         bpy.ops.preferences.addon_enable(module=SpritesheetAddonPreferences.bl_idname)
 
-def _updater(reload_addon_on_change = False) -> Callable[[SpritesheetAddonPreferences, bpy.types.Context], None]:
+def _updater(reload_addon_on_change = False) -> Callable[["SpritesheetAddonPreferences", bpy.types.Context], None]:
     return lambda self, context: _on_update(self, context, reload_addon_on_change)
 
 class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
