@@ -7,7 +7,8 @@ import sys
 import tempfile
 import time
 
-from preferences import SpritesheetAddonPreferences as Prefs
+import preferences
+
 from util import Camera as CameraUtil
 from util import ImageMagick
 from util.TerminalOutput import TerminalWriter
@@ -38,7 +39,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 reason = "Target Object is not set."
             elif not props.renderCamera:
                 reason = "Render Camera is not set."
-            elif not Prefs.PrefsAccess.image_magick_path:
+            elif not preferences.PrefsAccess.image_magick_path:
                 reason = "ImageMagick path is not set in Addon Preferences."
             elif props.useAnimations and not props.targetObject.animation_data:
                 reason = "'Control Animations' is enabled, but Target Object has no animation data."
@@ -146,7 +147,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._terminal_writer.write("\n\n---------- Starting spritesheet render job ----------\n\n")
 
         try:
-            result = ImageMagick.validate_image_magick_at_path(bpy.context.preferences.addons[Prefs.SpritesheetAddonPreferences.bl_idname].preferences.imageMagickPath)
+            result = ImageMagick.validate_image_magick_at_path()
             if not result["succeeded"]:
                 self._error = "ImageMagick check failed\n" + result["stderr"]
                 return

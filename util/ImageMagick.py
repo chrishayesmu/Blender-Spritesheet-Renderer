@@ -3,7 +3,8 @@ import math
 import os
 import subprocess
 
-from preferences import SpritesheetAddonPreferences as Prefs
+import preferences
+
 from util import FileSystemUtil
 
 def assemble_frames_into_spritesheet(sprite_size, total_num_frames, temp_dir_path, output_file_path):
@@ -44,7 +45,7 @@ def pad_image_to_size(image_path, size):
     extent_arg = str(size[0]) + "x" + str(size[1])
 
     args = [
-        Prefs.PrefsAccess.image_magick_path,
+        preferences.PrefsAccess.image_magick_path,
         "convert",
         "-background",
         "none", # added pixels will be transparent
@@ -64,13 +65,13 @@ def validate_image_magick_at_path(path = None):
     """Checks that ImageMagick is installed at the given path, or the path stored in the addon preferences if no path is provided."""
 
     if not path:
-        if not Prefs.PrefsAccess.image_magick_path:
+        if not preferences.PrefsAccess.image_magick_path:
             return {
                 "stderr": "ImageMagick path is not configured in Addon Preferences",
                 "succeeded": False
             }
 
-        path = Prefs.PrefsAccess.image_magick_path
+        path = preferences.PrefsAccess.image_magick_path
 
     # Just run a basic command to make sure ImageMagick is installed and the path is correct
     process_output = subprocess.run([path, "-version"], stdout = subprocess.PIPE, stderr = subprocess.PIPE, text = True, check = False)
@@ -106,7 +107,7 @@ def _image_magick_args(sprite_size, num_images, temp_dir_path, output_file_path)
     num_pixels_tall = num_rows * sprite_size[1]
 
     args_list = [
-        Prefs.PrefsAccess.image_magick_path,
+        preferences.PrefsAccess.image_magick_path,
         "montage",
         "@" + os.path.basename(in_file_path), # '@' prefix indicates to read input files from a text file; path needs to be relative to cwd
         "-geometry",

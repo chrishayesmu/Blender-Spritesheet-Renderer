@@ -1,8 +1,9 @@
 import bpy
 import math
 
+import preferences
+
 from operators.RenderSpritesheet import SPRITESHEET_OT_RenderSpritesheetOperator
-from preferences import SpritesheetAddonPreferences as Prefs
 from util import FileSystemUtil
 from util import StringUtil
 from util import UIUtil
@@ -13,7 +14,7 @@ class BaseAddonPanel:
 
     @classmethod
     def preregister(cls):
-        display_area = Prefs.PrefsAccess.display_area
+        display_area = preferences.PrefsAccess.display_area
 
         # Despite reloading all the modules, somehow some of this class data is being retained between
         # disabling/re-enabling the addon, so we set everything each time to be safe

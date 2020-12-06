@@ -34,8 +34,8 @@ importlib.reload(OpenDirectory)
 from operators import RenderSpritesheet
 importlib.reload(RenderSpritesheet)
 
-from preferences import SpritesheetAddonPreferences as Prefs
-importlib.reload(Prefs)
+import preferences
+importlib.reload(preferences)
 
 import property_groups
 importlib.reload(property_groups)
@@ -76,7 +76,7 @@ class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
 
 def find_image_magick_exe():
     # Only look for the exe if the path isn't already set
-    if not Prefs.PrefsAccess.image_magick_path:
+    if not preferences.PrefsAccess.image_magick_path:
         bpy.ops.spritesheet.prefs_locate_imagemagick()
 
 @persistent
@@ -133,7 +133,7 @@ classes = [
     property_groups.ReportingPropertyGroup,
     property_groups.SpritesheetPropertyGroup,
 
-    Prefs.SpritesheetAddonPreferences,
+    preferences.SpritesheetAddonPreferences,
 
     # Operators
     SPRITESHEET_OT_ShowAddonPrefsOperator,

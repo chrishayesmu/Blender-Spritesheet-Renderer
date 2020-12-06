@@ -2,18 +2,20 @@ import bpy
 import json
 import os
 
-#pylint: disable=protected-access
 
 def _getter(key, default_value):
+    #pylint: disable=protected-access
     return lambda self: self._prefs[key] if key in self._prefs else default_value
 
 def _setter(key):
     return (lambda self, value: _set(self, key, value))
 
 def _set(obj, key, value):
+    #pylint: disable=protected-access
     obj._prefs[key] = value
 
 def _on_update(self, _, reload_addon_on_change):
+    #pylint: disable=protected-access
     with open(self.prefsFile, "w") as f:
         json.dump(self._prefs, f)
 
@@ -24,7 +26,7 @@ def _updater(reload_addon_on_change = False):
     return lambda self, context: _on_update(self, context, reload_addon_on_change)
 
 class SpritesheetAddonPreferences(bpy.types.AddonPreferences):
-    bl_idname = os.path.basename(os.path.dirname(os.path.dirname(__file__)))
+    bl_idname = os.path.basename(os.path.dirname(__file__))
 
     prefsFile = os.path.join(os.path.dirname(__file__), "__prefs.json")
     _prefs = {}
