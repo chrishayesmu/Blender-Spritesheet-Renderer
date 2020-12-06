@@ -76,6 +76,11 @@ class SPRITESHEET_PT_AddonPanel(bpy.types.Panel):
     bl_context = "render"
     bl_label = "Spritesheet Renderer"
 
+    @classmethod
+    def poll(cls, _context):
+        # pylint: disable=comparison-with-callable
+        return preferences.PrefsAccess.display_area == "render_properties"
+
     def draw(self, context):
         pass
 

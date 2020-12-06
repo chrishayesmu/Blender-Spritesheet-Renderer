@@ -262,7 +262,8 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         name = "Total Angles",
         description = "How many rotations to perform",
         default = 8,
-        min = 2
+        min = 2,
+        max = 72 # 5 degrees movement per render should be fine-grained enough for anyone
     )
 
     rotationRoot: bpy.props.PointerProperty( # TODO delete
