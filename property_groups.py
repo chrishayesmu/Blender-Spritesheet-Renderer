@@ -94,7 +94,7 @@ class ObjectMaterialPairPropertyGroup(bpy.types.PropertyGroup):
 class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name = "Set Name",
-        description = "(Optional) A user-friendly name you can supply to help you keep track of your material sets"
+        description = "(Optional) A user-friendly name you can supply to help you keep track of your material sets. If not provided, the material set's role will be displayed instead"
     )
 
     role: bpy.props.EnumProperty(

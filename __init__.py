@@ -167,7 +167,6 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     ui_panels.SPRITESHEET_PT_JobManagementPanel
 ]
 
-
 def register():
     for cls in classes:
         Register.register_class(cls)

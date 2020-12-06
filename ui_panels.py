@@ -8,6 +8,7 @@ from operators.RenderSpritesheet import SPRITESHEET_OT_RenderSpritesheetOperator
 from util import FileSystemUtil
 from util import StringUtil
 from util import UIUtil
+import utils
 
 class BaseAddonPanel:
     """Base class for all of our UI panels with some common functionality."""
@@ -259,12 +260,17 @@ class SPRITESHEET_PT_MaterialSetPanel():
         props = context.scene.SpritesheetPropertyGroup
         material_set = props.materialSets[self.index]
 
-        set_label = f"Material Set {self.index + 1}"
+        set_display_name: str = material_set.name if material_set.name else utils.enum_display_name_from_identifier(material_set, "role", material_set.role)
 
-        if material_set.name:
-            set_label = set_label + " - " + material_set.name
+        split = self.layout.split()
 
-        self.layout.label(text = set_label)
+        col = split.column()
+        col.alignment = "LEFT"
+        col.label(text = f"Material Set {self.index + 1}", icon = "MATERIAL")
+
+        col = split.column()
+        col.alignment = "RIGHT"
+        col.label(text = set_display_name)
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup

@@ -18,6 +18,7 @@ from util import ImageMagick
 from util.TerminalOutput import TerminalWriter
 from util.SceneSnapshot import SceneSnapshot
 from util import StringUtil
+import utils
 
 class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     """Operator for executing spritesheet rendering. This is a modal operator which is expected to run for a long time."""
@@ -102,15 +103,15 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             return (False, "'Control Materials' is enabled, but no material sets have been created.")
 
         # Check that each material set role is only used once, except for Other
-        material_sets_by_role = collections.defaultdict(list)
+        material_sets_by_role: Dict[str, List[Dict[str, Any]]] = collections.defaultdict(list)
         for set_index, material_set in enumerate(props.materialSets):
-            material_sets_by_role[material_set.role].append(set_index)
+            material_sets_by_role[material_set.role].append({ "index": set_index, "set": material_set })
 
         for role, sets in material_sets_by_role.items():
             if len(sets) > 1 and role != "other":
-                # TODO transform role into its user-facing name in error message
-                set_indices = StringUtil.join_with_commas([str(index + 1) for index in sets])
-                return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role}'. This role can only be used once.")
+                role_name = utils.enum_display_name_from_identifier(sets[0]["set"], "role", role)
+                set_indices = StringUtil.join_with_commas([str(set_tuple["index"] + 1) for set_tuple in sets])
+                return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role_name}'. This role can only be used once.")
 
         # Check each Target Object's material slots
         for index, o in enumerate(props.targetObjects):
@@ -232,12 +233,13 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             self._error = "Failed to validate ImageMagick executable. Check that the path is correct in Addon Preferences."
             return
 
-        self._set_up_render_settings(context)
-
+        self._set_render_settings(context)
         self._terminal_writer.clear()
 
         scene.camera = props.renderCamera
 
+        enabled_actions: List[Optional[bpy.types.Action]]
+        separate_files_per_animation: bool
         if props.useAnimations:
             enabled_actions = [bpy.data.actions.get(a.name) for a in props.animationSelections if a.isSelectedForExport]
             separate_files_per_animation = props.separateFilesPerAnimation
@@ -252,6 +254,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             enabled_material_selections = []
             enabled_materials = [None]
 
+        # TODO there's no reason the rotation couldn't be float, except for determining the output file name
+        rotations: List[int]
+        separate_files_per_rotation: bool
         if props.rotateObject:
             rotations = [int(n * (360 / props.rotationNumber)) for n in range(props.rotationNumber)]
             rotation_root = props.rotationRoot if props.rotationRoot else props.targetObject
@@ -872,7 +877,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         return image_magick_output
 
-    def _set_up_render_settings(self, context: bpy.types.Context):
+    def _set_render_settings(self, context: bpy.types.Context):
         scene = context.scene
         props = scene.SpritesheetPropertyGroup
 
