@@ -255,7 +255,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             rotations = [int(n * (360 / props.rotationNumber)) for n in range(props.rotationNumber)]
             separate_files_per_rotation = props.separateFilesPerRotation
         else:
-            rotations = [None] # TODO this should be None so we don't accidentally apply a 0 rotation
+            rotations = [None]
             separate_files_per_rotation = False
 
         # Variables for progress tracking
@@ -308,7 +308,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                     self._rotate_target_objects(context, rotation_angle)
 
                 if props.controlCamera and props.cameraControlMode == "move_each_rotation":
-                    # TODO update method
                     self._optimize_camera(context, rotations = rotations, enabled_actions = enabled_actions, current_rotation = rotation_angle)
 
                 temp_dir_path = temp_dir.name
@@ -379,8 +378,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             if not separate_files_per_rotation and not separate_files_per_animation:
                 self._terminal_writer.write("\nCombining image files for material set {} of {}\n".format(material_number, len(material_sets)))
                 self._terminal_writer.indent += 1
+
                 # Output one file for the entire material
-                # TODO should temp_dir_path actually be in scope here?
                 image_magick_result = self._run_image_magick(props, reporting_props, material_set_index, None, frames_since_last_output, temp_dir_path, None)
 
                 if not image_magick_result["succeeded"]: # error running ImageMagick
@@ -679,7 +678,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         props = scene.SpritesheetPropertyGroup
         reporting_props = scene.ReportingPropertyGroup
 
-        # TODO apply to all objects (in particular use animation sets)
+        # TODO replace this with animation sets
         for obj in [o.mesh_object for o in props.render_targets if o.mesh_object.animation_data]:
             obj.animation_data.action = action
 

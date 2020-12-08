@@ -36,7 +36,7 @@ class BaseAddonPanel:
         else:
             raise ValueError("Unrecognized displayArea value: {}".format(display_area))
 
-    def message_box(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = "") -> bpy.types.UILayout:
+    def message_box(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = "NONE") -> bpy.types.UILayout:
         box = layout.box()
         sub = box
 
@@ -197,7 +197,7 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
 
                 # Don't show error message if a job is still running, it would be misleading
                 if reporting_props.lastErrorMessage:
-                    self.box_with_icon(context, self.layout, f"Last job ended in error: {reporting_props.lastErrorMessage}")
+                    self.message_box(context, self.layout, f"Last job ended in error: {reporting_props.lastErrorMessage}", icon = "ERROR")
 
     def draw_active_job_status(self, reporting_props):
         row = self.layout.row()
@@ -217,7 +217,7 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
         row.label(text = f"Estimated time remaining: {time_remaining_str}")
 
     def draw_render_disabled_reason(self, context: bpy.types.Context):
-        box = self.box_with_icon(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason)
+        box = self.message_box(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason, icon = "ERROR")
 
         # Hacky: check for keywords in the error string to expose some functionality
         reason_lower = SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason.lower()
@@ -360,7 +360,7 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
         row.prop(props, "rotationNumber")
 
         if 360 % props.rotationNumber != 0:
-            self.box_with_icon(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.")
+            self.message_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.", icon = "ERROR")
 
         row = self.layout.row()
         self.template_list(row,
