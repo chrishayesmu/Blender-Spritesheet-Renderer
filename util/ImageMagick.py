@@ -2,6 +2,7 @@ import glob
 import math
 import os
 import subprocess
+from typing import Optional, Tuple
 
 import preferences
 
@@ -36,7 +37,7 @@ def locate_image_magick_exe():
                 if "imagemagick" in path.lower():
                     exe_path = os.path.join(path, "magick.exe")
 
-                    if os.path.isfile(exe_path) and validate_image_magick_at_path(exe_path)["succeeded"]:
+                    if os.path.isfile(exe_path) and validate_image_magick_at_path(exe_path)[0]:
                         return exe_path
 
     return None
@@ -61,25 +62,19 @@ def pad_image_to_size(image_path, size):
 
     return process_output.returncode == 0
 
-def validate_image_magick_at_path(path = None):
+def validate_image_magick_at_path(path: str = None) -> Tuple[bool, Optional[str]]:
     """Checks that ImageMagick is installed at the given path, or the path stored in the addon preferences if no path is provided."""
 
     if not path:
         if not preferences.PrefsAccess.image_magick_path:
-            return {
-                "stderr": "ImageMagick path is not configured in Addon Preferences",
-                "succeeded": False
-            }
+            return (False, "ImageMagick path is not configured in Addon Preferences")
 
         path = preferences.PrefsAccess.image_magick_path
 
     # Just run a basic command to make sure ImageMagick is installed and the path is correct
     process_output = subprocess.run([path, "-version"], stdout = subprocess.PIPE, stderr = subprocess.PIPE, text = True, check = False)
 
-    return {
-        "stderr": str(process_output.stderr),
-        "succeeded": process_output.returncode == 0
-    }
+    return (process_output.returncode == 0, str(process_output.stderr))
 
 def _image_magick_args(sprite_size, num_images, temp_dir_path, output_file_path):
     # We need the input files to be in this known order, but the command line

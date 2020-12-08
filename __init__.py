@@ -84,9 +84,12 @@ def find_image_magick_exe():
         bpy.ops.spritesheet.prefs_locate_imagemagick()
 
 @persistent
-def initialize_collections(_unused):
+def initialize_collections(_unused: None):
     """Initializes certain CollectionProperty objects that otherwise would be empty."""
     props = bpy.context.scene.SpritesheetPropertyGroup
+
+    if len(props.render_targets) == 0:
+        bpy.ops.spritesheet.add_render_target()
 
     if len(props.materialSets) == 0:
         # spritesheet.add_material_set's poll method requires useMaterials to be true, so temporarily set it
@@ -95,14 +98,20 @@ def initialize_collections(_unused):
         bpy.ops.spritesheet.add_material_set()
         props.useMaterials = use_materials
 
+    # Each material set should have the same number of items as there are render targets
+    num_render_targets = len(props.render_targets)
+    for material_set in props.materialSets:
+        assert len(material_set.objectMaterialPairs) <= num_render_targets, f"There are more objectMaterialPairs in material set {material_set} than there are render targets"
+
+        while len(material_set.objectMaterialPairs) < num_render_targets:
+            pair = material_set.objectMaterialPairs.add()
+            pair.set_material_from_mesh(bpy.context, len(material_set.objectMaterialPairs) - 1)
+
     for i in range(0, len(props.materialSets)):
         ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
 
-    if len(props.targetObjects) == 0:
-        bpy.ops.spritesheet.add_render_target()
-
 @persistent
-def populate_animation_selections(_unused):
+def populate_animation_selections(_unused: None):
     scene = bpy.context.scene
     props = scene.SpritesheetPropertyGroup
     props.animationSelections.clear()
@@ -115,7 +124,7 @@ def populate_animation_selections(_unused):
     return 10.0
 
 @persistent
-def reset_reporting_props(_unused):
+def reset_reporting_props(_unused: None):
     reporting_props = bpy.context.scene.ReportingPropertyGroup
 
     reporting_props.currentFrameNum = 0
@@ -130,7 +139,6 @@ def reset_reporting_props(_unused):
 classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.types.Operator]]] = [
     # Property groups
     property_groups.AnimationSelectionPropertyGroup,
-    property_groups.MaterialSelectionPropertyGroup,
     property_groups.ObjectMaterialPairPropertyGroup,
     property_groups.MaterialSetPropertyGroup,
     property_groups.RenderTargetPropertyGroup,
@@ -146,6 +154,8 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     ListOperators.SPRITESHEET_OT_RemoveMaterialSetOperator,
     ListOperators.SPRITESHEET_OT_AddRenderTargetOperator,
     ListOperators.SPRITESHEET_OT_RemoveRenderTargetOperator,
+    ListOperators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
+    ListOperators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
     LocateImageMagick.SPRITESHEET_OT_LocateImageMagickOperator,
     OpenDirectory.SPRITESHEET_OT_OpenDirectoryOperator,
     RenderSpritesheet.SPRITESHEET_OT_RenderSpritesheetOperator,
@@ -158,7 +168,7 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
 
     # UI panels
     ui_panels.SPRITESHEET_PT_AddonPanel,
-    ui_panels.SPRITESHEET_PT_TargetObjectsPanel,
+    ui_panels.SPRITESHEET_PT_RenderTargetsPanel,
     ui_panels.SPRITESHEET_PT_AnimationsPanel,
     ui_panels.SPRITESHEET_PT_CameraPanel,
     ui_panels.SPRITESHEET_PT_MaterialsPanel,

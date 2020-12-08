@@ -8,7 +8,6 @@ from operators.RenderSpritesheet import SPRITESHEET_OT_RenderSpritesheetOperator
 from util import FileSystemUtil
 from util import StringUtil
 from util import UIUtil
-import utils
 
 class BaseAddonPanel:
     """Base class for all of our UI panels with some common functionality."""
@@ -37,22 +36,27 @@ class BaseAddonPanel:
         else:
             raise ValueError("Unrecognized displayArea value: {}".format(display_area))
 
-    def error_box(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str) -> bpy.types.UILayout:
+    def message_box(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = "") -> bpy.types.UILayout:
         box = layout.box()
-        row = box.row(align = True)
-        row.label(text = "", icon = "ERROR")
+        sub = box
 
-        self.wrapped_label(context, row, text)
+        if icon:
+            row = box.row(align = True)
+            row.label(text = "", icon = icon)
+            sub = row
+
+        self.wrapped_label(context, sub, text)
 
         return box
 
-    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, add_op: Optional[str] = None, remove_op: Optional[str] = None):
+    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str,
+                      add_op: Optional[str] = None, remove_op: Optional[str] = None, reorder_up_op: Optional[str] = None, reorder_down_op: Optional[str] = None):
         list_obj = getattr(dataptr, propname)
 
         # Mostly passthrough but with a couple of standardized params
         layout.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, rows = min(5, max(1, len(list_obj))), maxrows = 5)
 
-        if add_op or remove_op:
+        if add_op or remove_op or reorder_up_op or reorder_down_op:
             col = layout.column(align = True)
 
             if add_op:
@@ -61,8 +65,23 @@ class BaseAddonPanel:
             if remove_op:
                 col.operator(remove_op, text = "", icon = "REMOVE")
 
-    def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str):
+            #if add_op or remove_op:
+                # Make a subcolumn for the next buttons
+                #col = col.column(align = True)
+
+            col.separator()
+
+            if reorder_up_op:
+                col.operator(reorder_up_op, text = "", icon = "TRIA_UP")
+
+            if reorder_down_op:
+                col.operator(reorder_down_op, text = "", icon = "TRIA_DOWN")
+
+    def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = ""):
         lines = UIUtil.wrap_text_in_region(context, text)
+
+        if icon and len(lines) > 1:
+            pass
 
         col = layout.column(align = True)
         col.scale_y = .7 # bring text lines a little closer together
@@ -162,14 +181,10 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
                     self.draw_active_job_status(reporting_props)
             else:
                 row = self.layout.row()
-                box = row.box()
-                box.label(text = "No job is currently running. Showing results from the latest job.", icon = "INFO")
+                self.message_box(context, row, "No job is currently running. Showing results from the latest job.", icon = "INFO")
 
                 row = self.layout.row()
-                row.label(text = f"Last job completed after {StringUtil.timeAsString(reporting_props.elapsedTime)}.")
-
-                row = self.layout.row()
-                row.label(text = f"A total of {reporting_props.currentFrameNum} frame(s) were rendered (of an expected {reporting_props.totalNumFrames}).")
+                self.wrapped_label(context, row, f"Last job completed after {StringUtil.time_as_string(reporting_props.elapsedTime)}. A total of {reporting_props.currentFrameNum} frame(s) were rendered.")
 
                 if not reporting_props.lastErrorMessage:
                     if FileSystemUtil.get_system_type() in ("unchecked", "unknown"):
@@ -182,7 +197,7 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
 
                 # Don't show error message if a job is still running, it would be misleading
                 if reporting_props.lastErrorMessage:
-                    self.error_box(context, self.layout, f"Last job ended in error: {reporting_props.lastErrorMessage}")
+                    self.box_with_icon(context, self.layout, f"Last job ended in error: {reporting_props.lastErrorMessage}")
 
     def draw_active_job_status(self, reporting_props):
         row = self.layout.row()
@@ -194,15 +209,15 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
         row.label(text = f"Rendering frame {reporting_props.currentFrameNum} of {reporting_props.totalNumFrames} ({progress_percent}% complete).")
 
         row = self.layout.row()
-        row.label(text = f"Elapsed time: {StringUtil.timeAsString(reporting_props.elapsedTime)}")
+        row.label(text = f"Elapsed time: {StringUtil.time_as_string(reporting_props.elapsedTime)}")
 
         row = self.layout.row()
-        time_remaining = reporting_props.estimatedTimeRemaining()
+        time_remaining = reporting_props.estimated_time_remaining()
         time_remaining_str = StringUtil.time_as_string(time_remaining) if time_remaining is not None else "Calculating.."
         row.label(text = f"Estimated time remaining: {time_remaining_str}")
 
     def draw_render_disabled_reason(self, context: bpy.types.Context):
-        box = self.error_box(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason)
+        box = self.box_with_icon(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason)
 
         # Hacky: check for keywords in the error string to expose some functionality
         reason_lower = SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason.lower()
@@ -260,17 +275,15 @@ class SPRITESHEET_PT_MaterialSetPanel():
         props = context.scene.SpritesheetPropertyGroup
         material_set = props.materialSets[self.index]
 
-        set_display_name: str = material_set.name if material_set.name else utils.enum_display_name_from_identifier(material_set, "role", material_set.role)
-
         split = self.layout.split()
 
         col = split.column()
         col.alignment = "LEFT"
-        col.label(text = f"Material Set {self.index + 1}", icon = "MATERIAL")
+        col.label(text = f"Material Set {self.index + 1}")
 
         col = split.column()
         col.alignment = "RIGHT"
-        col.label(text = set_display_name)
+        col.label(text = material_set.display_name)
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
@@ -347,21 +360,21 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
         row.prop(props, "rotationNumber")
 
         if 360 % props.rotationNumber != 0:
-            self.error_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.")
+            self.box_with_icon(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.")
 
         row = self.layout.row()
         self.template_list(row,
                     "SPRITESHEET_UL_RotationRootPropertyList", # Class name
                     "spritesheet_RotationOptionsPanel_rotation_root_list", # List ID (blank to generate)
                     props, # List items property source
-                    "targetObjects", # List items property name
+                    "render_targets", # List items property name
                     props, # List index property source
                     "selectedRotationRootIndex", # List index property name
         )
 
-class SPRITESHEET_PT_TargetObjectsPanel(BaseAddonPanel, bpy.types.Panel):
-    bl_idname = "SPRITESHEET_PT_targetobjects"
-    bl_label = "Target Objects"
+class SPRITESHEET_PT_RenderTargetsPanel(BaseAddonPanel, bpy.types.Panel):
+    bl_idname = "SPRITESHEET_PT_rendertargets"
+    bl_label = "Render Targets"
     bl_options = set() # override parent's DEFAULT_CLOSED
 
     def draw(self, context):
@@ -370,11 +383,13 @@ class SPRITESHEET_PT_TargetObjectsPanel(BaseAddonPanel, bpy.types.Panel):
         row = self.layout.row()
         self.template_list(row,
                            "SPRITESHEET_UL_RenderTargetPropertyList", # Class name
-                           "spritesheet_TargetObjectsPanel_target_objects_list", # List ID (blank to generate)
+                           "spritesheet_RenderTargetsPanel_target_objects_list", # List ID (blank to generate)
                            props, # List items property source
-                           "targetObjects", # List items property name
+                           "render_targets", # List items property name
                            props, # List index property source
-                           "selectedTargetObjectIndex", # List index property name,
+                           "selected_render_target_index", # List index property name,
                            add_op = "spritesheet.add_render_target",
-                           remove_op = "spritesheet.remove_render_target"
+                           remove_op = "spritesheet.remove_render_target",
+                           reorder_up_op = "spritesheet.move_render_target_up",
+                           reorder_down_op = "spritesheet.move_render_target_down"
         )

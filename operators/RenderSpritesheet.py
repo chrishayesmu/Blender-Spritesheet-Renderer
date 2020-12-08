@@ -12,7 +12,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import preferences
 
-from property_groups import MaterialSelectionPropertyGroup, ReportingPropertyGroup, SpritesheetPropertyGroup
+from property_groups import MaterialSetPropertyGroup, ReportingPropertyGroup, SpritesheetPropertyGroup
 from util import Camera as CameraUtil
 from util import ImageMagick
 from util.TerminalOutput import TerminalWriter
@@ -34,7 +34,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # So the whole thing is wrapped in a try/except block so we can know what happened.
         try:
             validators = [
-                cls._validate_image_magick,
+                cls._validate_image_magick_install,
                 cls._validate_target_objects,
                 cls._validate_animation_options,
                 cls._validate_camera_options,
@@ -60,8 +60,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         if not props.useAnimations:
             return (True, None)
 
-        if all(not obj.object.animation_data for obj in props.targetObjects):
-            return (False, "'Control Animations' is enabled, but none of the Target Objects have animation data.")
+        if all(not target.mesh_object.animation_data for target in props.render_targets):
+            return (False, "'Control Animations' is enabled, but none of the Render Targets have animation data.")
 
         enabled_action_selections = [a for a in props.animationSelections if a.isSelectedForExport]
 
@@ -86,7 +86,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         return (True, None)
 
     @classmethod
-    def _validate_image_magick(cls, _context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
+    def _validate_image_magick_install(cls, _context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         if not preferences.PrefsAccess.image_magick_path:
             return (False, "ImageMagick path is not set in Addon Preferences.")
 
@@ -114,16 +114,14 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role_name}'. This role can only be used once.")
 
         # Check each Target Object's material slots
-        for index, o in enumerate(props.targetObjects):
-            obj = o.object
-
-            num_material_slots = len(obj.data.materials) if hasattr(obj.data, "materials") else 0
+        for index, target in enumerate(props.render_targets):
+            num_material_slots = len(target.mesh.materials)
             if num_material_slots > 1:
-                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{obj.name}\") has {num_material_slots}. "
+                return (False, f"If 'Control Materials' is enabled, each Render Target must have exactly 1 material slot. Object #{index + 1} (\"{target.mesh.name}\") has {num_material_slots}. "
                               + "(You may need to select child objects instead, or split your mesh by material.)")
 
             if num_material_slots == 0:
-                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{obj.name}\") has none.")
+                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{target.mesh.name}\") has none.")
 
         return (True, None)
 
@@ -131,14 +129,14 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     def _validate_target_objects(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
-        if not props.targetObjects or len(props.targetObjects) == 0:
+        if not props.render_targets or len(props.render_targets) == 0:
             return (False, "There are no Target Objects set.")
 
-        for index, o in enumerate(props.targetObjects):
-            obj = o.object
+        for index, o in enumerate(props.render_targets):
+            obj = o.mesh_object
 
             if obj is None:
-                return (False, f"Target Object slot #{index + 1} has no object selected. If unwanted, remove the slot.")
+                return (False, f"Target Mesh slot #{index + 1} has no mesh selected. If unwanted, remove the slot.")
 
         return (True, None)
 
@@ -151,9 +149,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._last_job_id: int = -1
         self._last_job_start_time: Optional[float] = None
         self._next_job_id: int = 0
+        self._scene_snapshot: SceneSnapshot = SceneSnapshot(context)
         self._start_time: float = time.clock()
         self._terminal_writer: TerminalWriter = TerminalWriter(sys.stdout, not reporting_props.outputToTerminal)
-        self._scene_snapshot: SceneSnapshot = SceneSnapshot(context, self._terminal_writer)
 
         # Execute generator a single time to set up all reporting properties and validate config; this won't render anything yet
         self._generator: Generator[None, None, None] = self._generate_frames_and_spritesheets(context)
@@ -225,9 +223,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._terminal_writer.write("\n\n---------- Starting spritesheet render job ----------\n\n")
 
         try:
-            result = ImageMagick.validate_image_magick_at_path()
-            if not result["succeeded"]:
-                self._error = "ImageMagick check failed\n" + result["stderr"]
+            succeeded, error = ImageMagick.validate_image_magick_at_path()
+            if not succeeded:
+                self._error = "ImageMagick check failed\n" + error
                 return
         except:
             self._error = "Failed to validate ImageMagick executable. Check that the path is correct in Addon Preferences."
@@ -236,7 +234,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._set_render_settings(context)
         self._terminal_writer.clear()
 
-        scene.camera = props.renderCamera
+        if props.controlCamera:
+            scene.camera = props.render_camera_obj
 
         enabled_actions: List[Optional[bpy.types.Action]]
         separate_files_per_animation: bool
@@ -247,30 +246,23 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             enabled_actions = [None]
             separate_files_per_animation = False
 
-        if props.useMaterials:
-            enabled_material_selections = [ms for ms in props.materialSelections if ms.isSelectedForExport]
-            enabled_materials = [bpy.data.materials.get(ms.name) for ms in enabled_material_selections]
-        else:
-            enabled_material_selections = []
-            enabled_materials = [None]
+        material_sets = props.materialSets if props.useMaterials else [None]
 
         # TODO there's no reason the rotation couldn't be float, except for determining the output file name
         rotations: List[int]
         separate_files_per_rotation: bool
         if props.rotateObject:
             rotations = [int(n * (360 / props.rotationNumber)) for n in range(props.rotationNumber)]
-            rotation_root = props.rotationRoot if props.rotationRoot else props.targetObject
             separate_files_per_rotation = props.separateFilesPerRotation
         else:
-            rotations = [0]
-            rotation_root = props.targetObject
+            rotations = [None] # TODO this should be None so we don't accidentally apply a 0 rotation
             separate_files_per_rotation = False
 
         # Variables for progress tracking
         material_number = 0
         num_expected_json_files = (len(rotations) if props.separateFilesPerRotation else 1) * (len(enabled_actions) if props.separateFilesPerAnimation else 1) # materials never result in separate JSON files
 
-        reporting_props.totalNumFrames = self._count_total_frames(enabled_materials, rotations, enabled_actions)
+        reporting_props.totalNumFrames = self._count_total_frames(material_sets, rotations, enabled_actions)
         self._terminal_writer.write("Expecting to render a total of {} frames\n".format(reporting_props.totalNumFrames))
 
         if separate_files_per_animation:
@@ -286,23 +278,23 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         yield
 
         if props.controlCamera and props.cameraControlMode == "move_once":
-            self._optimize_camera(context, rotation_root = rotation_root, rotations = rotations, enabled_actions = enabled_actions)
+            self._optimize_camera(context, rotations = rotations, enabled_actions = enabled_actions)
 
         self._terminal_writer.write("\n")
 
         frames_since_last_output = 0
 
-        for material in enabled_materials:
+        for material_set_index, material_set in enumerate(material_sets):
             material_number += 1
-            material_name = material.name if material else "N/A"
+            material_set_name = material_set.display_name if material_set else "N/A"
             render_data = []
             temp_dir = tempfile.TemporaryDirectory()
 
-            self._terminal_writer.write("Rendering material {} of {}: \"{}\"\n".format(material_number, len(enabled_materials), material_name))
+            self._terminal_writer.write("Rendering material set {} of {}: \"{}\"\n".format(material_number, len(material_sets), material_set_name))
             self._terminal_writer.indent += 1
 
-            if material is not None:
-                props.targetObject.data.materials[0] = material
+            if material_set is not None:
+                self._assign_materials_from_set(context, material_set)
 
             rotation_number = 0
             for rotation_angle in rotations:
@@ -313,12 +305,13 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 self._terminal_writer.indent += 1
 
                 if props.rotateObject:
-                    rotation_root.rotation_euler[2] = math.radians(rotation_angle)
-
-                temp_dir_path = temp_dir.name
+                    self._rotate_target_objects(context, rotation_angle)
 
                 if props.controlCamera and props.cameraControlMode == "move_each_rotation":
-                    self._optimize_camera(context, rotation_root = rotation_root, rotations = rotations, enabled_actions = enabled_actions, current_rotation = rotation_angle)
+                    # TODO update method
+                    self._optimize_camera(context, rotations = rotations, enabled_actions = enabled_actions, current_rotation = rotation_angle)
+
+                temp_dir_path = temp_dir.name
 
                 for action in enabled_actions:
                     action_number += 1
@@ -332,22 +325,19 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                             action_data = val
                             yield
 
-                        action_data["material"] = material
-                        action_data["rotation"] = rotation_angle
                         render_data.append(action_data)
-
                         frames_since_last_output += action_data["numFrames"]
 
-                        # Render now if files are being split by animation, so we can wipe out all the per-frame
+                        # Combine sprites now if files are being split by animation, so we can wipe out all the per-frame
                         # files before processing the next animation
                         if separate_files_per_animation:
                             self._terminal_writer.write("\nCombining image files for action {} of {}\n".format(action_number, len(enabled_actions)))
-                            image_magick_result = self._run_image_magick(props, reporting_props, action, frames_since_last_output, temp_dir_path, rotation_angle)
+                            image_magick_result = self._run_image_magick(props, reporting_props, material_set_index, action, frames_since_last_output, temp_dir_path, rotation_angle)
 
                             if not image_magick_result["succeeded"]: # error running ImageMagick
                                 return
 
-                            self._create_json_file(props, reporting_props, enabled_material_selections, render_data, image_magick_result)
+                            self._create_json_file(props, reporting_props, material_sets, render_data, image_magick_result)
                             self._terminal_writer.write("\n")
 
                             frames_since_last_output = 0
@@ -369,12 +359,12 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                     self._terminal_writer.indent += 1
 
                     # Output one file for the whole rotation, with all animations in it
-                    image_magick_result = self._run_image_magick(props, reporting_props, None, frames_since_last_output, temp_dir_path, rotation_angle)
+                    image_magick_result = self._run_image_magick(props, reporting_props, material_set_index, None, frames_since_last_output, temp_dir_path, rotation_angle)
 
                     if not image_magick_result["succeeded"]: # error running ImageMagick
                         return
 
-                    self._create_json_file(props, reporting_props, enabled_material_selections, render_data, image_magick_result)
+                    self._create_json_file(props, reporting_props, material_sets, render_data, image_magick_result)
                     self._terminal_writer.write("\n")
                     self._terminal_writer.indent -= 1
 
@@ -387,15 +377,16 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 # End of for(rotations)
 
             if not separate_files_per_rotation and not separate_files_per_animation:
-                self._terminal_writer.write("\nCombining image files for material {} of {}\n".format(material_number, len(enabled_materials)))
+                self._terminal_writer.write("\nCombining image files for material set {} of {}\n".format(material_number, len(material_sets)))
                 self._terminal_writer.indent += 1
                 # Output one file for the entire material
-                image_magick_result = self._run_image_magick(props, reporting_props, None, frames_since_last_output, temp_dir_path, None)
+                # TODO should temp_dir_path actually be in scope here?
+                image_magick_result = self._run_image_magick(props, reporting_props, material_set_index, None, frames_since_last_output, temp_dir_path, None)
 
                 if not image_magick_result["succeeded"]: # error running ImageMagick
                     return
 
-                self._create_json_file(props, reporting_props, enabled_material_selections, render_data, image_magick_result)
+                self._create_json_file(props, reporting_props, material_sets, render_data, image_magick_result)
                 self._terminal_writer.write("\n")
                 self._terminal_writer.indent -= 1
 
@@ -426,6 +417,15 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         return
 
+    def _assign_materials_from_set(self, context: bpy.types.Context, material_set: MaterialSetPropertyGroup):
+        props = context.scene.SpritesheetPropertyGroup
+
+        for index, target in enumerate(props.render_targets):
+            # Indices match between objects and their entries in the material set
+            material_name = material_set.objectMaterialPairs[index].materialName
+            material = bpy.data.materials.get(material_name)
+            target.mesh.materials[0] = material
+
     def _base_output_dir(self) -> str:
         if bpy.data.filepath:
             out_dir = os.path.dirname(bpy.data.filepath)
@@ -434,24 +434,21 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # Use the user's home directory
         return os.path.join(str(pathlib.Path.home()), "Rendered spritesheets")
 
-    def _create_file_path(self, props: SpritesheetPropertyGroup, action: bpy.types.Action, rotation_angle: int, material_override: bpy.types.Material = None, include_material: bool = True) -> str:
+    def _create_file_path(self, props: SpritesheetPropertyGroup, material_set_index: int, action: bpy.types.Action, rotation_angle: int, include_material_set: bool = True) -> str:
         if bpy.data.filepath:
             filename, _ = os.path.splitext(os.path.basename(bpy.data.filepath))
         else:
-            filename = props.targetObject.name + "_render"
+            filename = "spritesheet"
 
         output_file_path = os.path.join(self._base_output_dir(), filename)
 
         # Make sure output directory exists
         pathlib.Path(os.path.dirname(output_file_path)).mkdir(exist_ok = True)
 
-        if material_override:
-            material_name = material_override.name
-        else:
-            material_name = props.targetObject.data.materials[0].name if props.useMaterials and len(props.targetObject.data.materials) > 0 else ""
-
-        if material_name and include_material:
-            output_file_path += "_" + self._format_string_for_filename(material_name)
+        material_set = props.materialSets[material_set_index]
+        if include_material_set and material_set is not None:
+            # Possible TODO: only include index if necessary (i.e. multiple material sets have the same role). Pretty low priority
+            output_file_path += "_" + self._format_string_for_filename(material_set.role) + "_" + str(material_set_index)
 
         if props.useAnimations and props.separateFilesPerAnimation:
             output_file_path += "_" + self._format_string_for_filename(action.name)
@@ -461,7 +458,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         return output_file_path
 
-    def _create_json_file(self, props: SpritesheetPropertyGroup, reporting_props: ReportingPropertyGroup, enabled_material_selections: List[MaterialSelectionPropertyGroup], render_data: Dict[str, Any], image_magick_data: Dict[str, Any]):
+    def _create_json_file(self, props: SpritesheetPropertyGroup, reporting_props: ReportingPropertyGroup, material_sets: List[MaterialSetPropertyGroup], render_data: Dict[str, Any], image_magick_data: Dict[str, Any]):
         job_id = self._get_next_job_id()
         self._report_job("JSON dump", "writing JSON attributes", job_id, reporting_props)
 
@@ -469,7 +466,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         action: Optional[bpy.types.Action] = render_data[0]["action"] if props.useAnimations and props.separateFilesPerAnimation else None
         rotation: Optional[int] = render_data[0]["rotation"] if props.rotateObject and props.separateFilesPerRotation else None
 
-        json_file_path = self._create_file_path(props, action, rotation, include_material = False) + ".ssdata"
+        json_file_path = self._create_file_path(props, 0, action, rotation, include_material_set = False) + ".ssdata"
 
         # Since the material isn't part of the file path, we could end up writing each JSON file multiple times.
         # They all have the same data, so just skip writing if that's the case.
@@ -480,7 +477,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         padding: Tuple[int, int] = image_magick_data["args"]["padding"] if "padding" in image_magick_data["args"] else (0, 0)
 
         json_data = {
-            "baseObjectName": os.path.splitext(os.path.basename(bpy.data.filepath))[0] if bpy.data.filepath else props.targetObject.name,
+            "baseObjectName": utils.blend_file_name(default_value = "object"),
             "spriteWidth": props.spriteSize[0],
             "spriteHeight": props.spriteSize[1],
             "paddingWidth": padding[0],
@@ -493,19 +490,19 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             # If using materials, need to reference where the spritesheet for each material is located
             json_data["materialData"] = []
 
-            for material_selection in enabled_material_selections:
-                image_path = self._create_file_path(props, action, rotation, material_override = material_selection) + ".png"
+            for index, material_set in enumerate(material_sets):
+                image_path = self._create_file_path(props, index, action, rotation) + ".png"
                 self._output_dir = os.path.dirname(image_path)
                 relative_path = os.path.basename(image_path)
 
                 json_data["materialData"].append({
-                    "name": material_selection.name,
+                    "name": material_set.display_name,
                     "file": relative_path,
-                    "role": material_selection.role
+                    "role": material_set.role
                 })
         else:
             # When not using materials, there's only one image file per JSON file
-            image_path = self._create_file_path(props, action, rotation) + ".png"
+            image_path = self._create_file_path(props, 0, action, rotation, include_material_set = False) + ".png"
             self._output_dir = os.path.dirname(image_path)
 
             json_data["imageFile"] = os.path.basename(image_path)
@@ -544,7 +541,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._json_data[json_file_path] = json_data
         self._report_job("JSON dump", "output is at " + json_file_path, job_id, reporting_props, is_complete = True)
 
-    def _count_total_frames(self, materials: List[bpy.types.Material], rotations: List[int], actions: List[bpy.types.Action]) -> int:
+    def _count_total_frames(self, material_sets: List[MaterialSetPropertyGroup], rotations: List[int], actions: List[bpy.types.Action]) -> int:
         total_frames_across_actions = 0
 
         for action in actions:
@@ -556,7 +553,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 num_frames = frame_max - frame_min + 1
                 total_frames_across_actions += num_frames
 
-        return total_frames_across_actions * len(materials) * len(rotations)
+        return total_frames_across_actions * len(material_sets) * len(rotations)
 
     def _format_string_for_filename(self, string: str) -> str:
         return string.replace(' ', '_').lower()
@@ -569,7 +566,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         """Returns the smallest power of two which is equal to or greater than val"""
         return 1 if val == 0 else 2 ** math.ceil(math.log2(val))
 
-    def _optimize_camera(self, context: bpy.types.Context, rotation_root = None, rotations = None, enabled_actions = None, current_action: Optional[bpy.types.Action] = None, current_rotation: Optional[int] = None, report_job: bool = True):
+    def _optimize_camera(self, context: bpy.types.Context, rotations = None, enabled_actions = None, current_action: Optional[bpy.types.Action] = None, current_rotation: Optional[int] = None, report_job: bool = True):
         props = context.scene.SpritesheetPropertyGroup
         reporting_props = context.scene.ReportingPropertyGroup
 
@@ -583,12 +580,12 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the entire render", job_id, reporting_props)
 
-            CameraUtil.optimize_for_all_frames(context, rotation_root, rotations, enabled_actions)
+            CameraUtil.optimize_for_all_frames(context, rotations, enabled_actions)
         elif props.cameraControlMode == "move_each_frame":
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the current frame", job_id, reporting_props)
 
-            CameraUtil.fit_camera_to_target_object(context)
+            CameraUtil.fit_camera_to_render_targets(context)
         elif props.cameraControlMode == "move_each_animation":
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the current animation", job_id, reporting_props)
@@ -598,9 +595,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the current rotation angle", job_id, reporting_props)
 
-            CameraUtil.optimize_for_rotation(context, rotation_root, current_rotation, enabled_actions)
+            CameraUtil.optimize_for_rotation(context, current_rotation, enabled_actions)
 
-        complete_msg = "Camera will render from {}, with an ortho_scale of {}".format(StringUtil.format_number(props.renderCamera.location), StringUtil.format_number(props.renderCamera.data.ortho_scale))
+        complete_msg = "Camera will render from {}, with an ortho_scale of {}".format(StringUtil.format_number(props.render_camera_obj.location), StringUtil.format_number(props.renderCamera.ortho_scale))
 
         if report_job:
             self._report_job(job_title, complete_msg, job_id, reporting_props, is_complete = True)
@@ -618,8 +615,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         if num_expected_json_files == len(self._json_data):
             self._report_job("Sanity check", "wrote the expected number of JSON files ({})".format(num_expected_json_files), job_id, reporting_props, is_complete = True)
         else:
-            self._report_job("Sanity check", "expected to write {} JSON files but found {}".format(num_expected_json_files, len(self._json_data)), job_id, reporting_props, is_error = True)
-            self._error = "An internal error occurred while writing JSON files."
+            msg = f"expected to write {num_expected_json_files} JSON files but found {len(self._json_data)}"
+            self._report_job("Sanity check", msg, job_id, reporting_props, is_error = True)
+            self._error = "An internal error occurred while writing JSON files: " + msg
             return False
 
         job_id = self._get_next_job_id()
@@ -636,8 +634,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
             if "materialData" in data:
                 if len(expected_files) != 0:
-                    self._report_job("Sanity check", "JSON should not have both 'imageFile' and 'materialData' keys", job_id, reporting_props, is_error = True)
-                    self._error = "An internal error occurred while writing JSON files."
+                    msg = "JSON should not have both 'imageFile' and 'materialData' keys"
+                    self._report_job("Sanity check", msg, job_id, reporting_props, is_error = True)
+                    self._error = "An internal error occurred while writing JSON files: " + msg
                     return False
 
                 for material_data in data["materialData"]:
@@ -647,8 +646,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 abs_path = os.path.join(self._output_dir, file_path)
 
                 if not os.path.isfile(abs_path):
-                    self._report_job("Sanity check", "expected file not found at " + abs_path, job_id, reporting_props, is_error = True)
-                    self._error = "An internal error occurred while writing JSON files."
+                    msg = "expected file not found at " + abs_path
+                    self._report_job("Sanity check", msg, job_id, reporting_props, is_error = True)
+                    self._error = "An internal error occurred while writing JSON files: " + msg
                     return False
 
         self._report_job("Sanity check", "successfully validated JSON data for {} file(s)".format(len(self._json_data)), job_id, reporting_props, is_complete = True)
@@ -679,19 +679,20 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         props = scene.SpritesheetPropertyGroup
         reporting_props = scene.ReportingPropertyGroup
 
-        props.targetObject.animation_data.action = action
+        # TODO apply to all objects (in particular use animation sets)
+        for obj in [o.mesh_object for o in props.render_targets if o.mesh_object.animation_data]:
+            obj.animation_data.action = action
 
-        frame_min = math.floor(action.frame_range[0])
-        frame_max = math.ceil(action.frame_range[1])
-        num_frames = frame_max - frame_min + 1
+        frame_min: int = math.floor(action.frame_range[0])
+        frame_max: int = math.ceil(action.frame_range[1])
+        num_frames: int = frame_max - frame_min + 1
+        num_digits_in_frame_max: int = int(math.log10(frame_max)) + 1
 
         action_data = {
             "action": action,
             "frameData": [],
             "rotation": rotation
         }
-
-        num_digits = int(math.log10(frame_max)) + 1
 
         if props.controlCamera and props.cameraControlMode == "move_each_animation":
             self._optimize_camera(context, current_action = action)
@@ -711,7 +712,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             if props.rotateObject:
                 filename += "rot" + str(rotation).zfill(3) + "_"
 
-            filename += str(index).zfill(num_digits)
+            filename += str(index).zfill(num_digits_in_frame_max)
 
             filepath = os.path.join(temp_dir_path, filename)
 
@@ -730,7 +731,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         action_data["numFrames"] = rendered_frames
         self._report_job("Rendering frames", "completed rendering {} frames".format(rendered_frames), job_id, reporting_props, is_complete = True)
 
-        return action_data
+        yield action_data
 
     def _render_still(self, context: bpy.types.Context, rotation_angle: int, frame_number: int, temp_dir_path: str) -> Dict[str, Any]:
         # Renders a single frame
@@ -798,7 +799,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # Show elapsed and remaining time
         if reporting_props.currentFrameNum > 0:
             time_elapsed_string =   f"Time elapsed:   {StringUtil.time_as_string(reporting_props.elapsedTime, precision = 2)}"
-            time_remaining_string = f"Time remaining: {StringUtil.time_as_string(reporting_props.estimatedTimeRemaining(), precision = 2)}"
+            time_remaining_string = f"Time remaining: {StringUtil.time_as_string(reporting_props.estimated_time_remaining(), precision = 2)}"
 
             # Make the strings repeat on the right side of the terminal, with a small indent
             columns_remaining = os.get_terminal_size().columns - len(time_elapsed_string) - 10
@@ -815,6 +816,13 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         # Don't persist the progress bar and time or else they'd fill the terminal every time we write
         self._terminal_writer.write(msg, unpersisted_portion = progress_bar + time_string, persist_msg = persist_message)
+
+    def _rotate_target_objects(self, context: bpy.types.Context, angle_degrees: int):
+        props = context.scene.SpritesheetPropertyGroup
+
+        for target in props.render_targets:
+            rotation_root = target.rotation_root if target.rotation_root else target.mesh_object
+            rotation_root.rotation_euler[2] = math.radians(angle_degrees)
 
     def _run_render_without_stdout(self, context: bpy.types.Context):
         """Renders a single frame without printing the norma message to stdout
@@ -844,11 +852,11 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             os.dup(original_stdout)
             os.close(original_stdout)
 
-    def _run_image_magick(self, props: SpritesheetPropertyGroup, reporting_props: ReportingPropertyGroup, action: bpy.types.Action, total_num_frames: int, temp_dir_path: str, rotation_angle: int) -> Dict[str, Any]:
+    def _run_image_magick(self, props: SpritesheetPropertyGroup, reporting_props: ReportingPropertyGroup, material_set_index: int, action: bpy.types.Action, total_num_frames: int, temp_dir_path: str, rotation_angle: int) -> Dict[str, Any]:
         job_id = self._get_next_job_id()
         self._report_job("ImageMagick", "Combining {} frames into spritesheet with ImageMagick".format(total_num_frames), job_id, reporting_props)
 
-        output_file_path = self._create_file_path(props, action, rotation_angle) + ".png"
+        output_file_path = self._create_file_path(props, material_set_index, action, rotation_angle, include_material_set = props.useMaterials) + ".png"
         image_magick_output = ImageMagick.assemble_frames_into_spritesheet(props.spriteSize, total_num_frames, temp_dir_path, output_file_path)
 
         if not image_magick_output["succeeded"]:
