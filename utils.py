@@ -3,8 +3,6 @@ import math
 import os
 from typing import Optional
 
-from property_groups import SpritesheetPropertyGroup
-
 def blend_file_name(default_value: Optional[str] = None) -> Optional[str]:
     """Returns the .blend file name without its extension if the file has been saved, or default_value if not."""
     if not bpy.data.filepath:
@@ -44,7 +42,7 @@ def find_object_data_for_mesh(mesh: bpy.types.Mesh) -> bpy.types.Object:
 
     return next(iter(objects_by_mesh[mesh]))
 
-def rotate_render_targets(props: SpritesheetPropertyGroup, x_rot_degrees: Optional[float] = None, y_rot_degrees: Optional[float] = None, z_rot_degrees: Optional[float] = None):
+def rotate_render_targets(props: "SpritesheetPropertyGroup", x_rot_degrees: Optional[float] = None, y_rot_degrees: Optional[float] = None, z_rot_degrees: Optional[float] = None):
     assert not (x_rot_degrees is None and y_rot_degrees is None and z_rot_degrees is None), "No rotation values were passed"
 
     for render_target in props.render_targets:
