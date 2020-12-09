@@ -44,14 +44,13 @@ class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
         default = ""
     )
 
-    isSelectedForExport: bpy.props.BoolProperty(
-        name = "", # Force no name when rendering
-        default = True
-    )
+    isSelectedForExport: bpy.props.BoolProperty(default = True)
 
     numFrames: bpy.props.IntProperty()
 
 class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
+    # You can only make CollectionProperties out of PropertyGroups, so this class just wraps bpy.types.Material
+
     material: bpy.props.PointerProperty(
         name = "Material",
         type = bpy.types.Material

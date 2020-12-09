@@ -49,25 +49,23 @@ class BaseAddonPanel:
 
         return box
 
-    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str,
+    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, min_rows: int = 1,
                       add_op: Optional[str] = None, remove_op: Optional[str] = None, reorder_up_op: Optional[str] = None, reorder_down_op: Optional[str] = None):
         list_obj = getattr(dataptr, propname)
 
+        row = layout.row()
+
         # Mostly passthrough but with a couple of standardized params
-        layout.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, rows = min(5, max(1, len(list_obj))), maxrows = 5)
+        row.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, rows = min(5, max(min_rows, len(list_obj))), maxrows = 5)
 
         if add_op or remove_op or reorder_up_op or reorder_down_op:
-            col = layout.column(align = True)
+            col = row.column(align = True)
 
             if add_op:
                 col.operator(add_op, text = "", icon = "ADD")
 
             if remove_op:
                 col.operator(remove_op, text = "", icon = "REMOVE")
-
-            #if add_op or remove_op:
-                # Make a subcolumn for the next buttons
-                #col = col.column(align = True)
 
             col.separator()
 
@@ -117,12 +115,9 @@ class SPRITESHEET_PT_AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
         props = context.scene.SpritesheetPropertyGroup
 
         self.layout.active = props.useAnimations
+        self.layout.prop(props, "outputFrameRate")
 
-        row = self.layout.row()
-        row.prop(props, "outputFrameRate")
-
-        row = self.layout.row()
-        self.template_list(row,
+        self.template_list(self.layout,
                            "SPRITESHEET_UL_AnimationSelectionPropertyList", # Class name
                            "", # List ID (blank to generate)
                            props, # List items property source
@@ -144,12 +139,8 @@ class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
         props = context.scene.SpritesheetPropertyGroup
 
         self.layout.active = props.controlCamera
-
-        row = self.layout.row()
-        row.prop_search(props, "renderCamera", bpy.data, "cameras")
-
-        row = self.layout.row()
-        row.prop(props, "cameraControlMode")
+        self.layout.prop_search(props, "renderCamera", bpy.data, "cameras")
+        self.layout.prop(props, "cameraControlMode")
 
 class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_jobmanagement"
@@ -159,78 +150,64 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
     def draw(self, context):
         reporting_props = context.scene.ReportingPropertyGroup
 
-        col = self.layout.column(heading = "Output Progress to", align = True)
-        col.use_property_split = True
-        col.use_property_decorate = False
-        col.prop(reporting_props, "outputToTerminal")
-        col.prop(reporting_props, "outputToUI")
+        row = self.layout.row(heading = "Output Progress to", align = True)
+        row.alignment = "LEFT"
+        row.prop(reporting_props, "outputToUI")
+        row.prop(reporting_props, "outputToTerminal")
 
-        row = self.layout.row()
-        row.operator("spritesheet.render", text = "Start Render")
+        self.layout.operator("spritesheet.render", text = "Start Render")
 
         if SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason:
             self.draw_render_disabled_reason(context)
 
         if not reporting_props.hasAnyJobStarted:
             if reporting_props.outputToUI:
-                row = self.layout.row()
-                row.label(text = "Job output will be available here once a render job has started.")
+                self.layout.label(text = "Job output will be available here once a render job has started.")
         else:
             if reporting_props.jobInProgress:
                 if reporting_props.outputToUI:
                     self.draw_active_job_status(reporting_props)
             else:
-                row = self.layout.row()
-                self.message_box(context, row, "No job is currently running. Showing results from the latest job.", icon = "INFO")
-
-                row = self.layout.row()
-                self.wrapped_label(context, row, f"Last job completed after {StringUtil.time_as_string(reporting_props.elapsedTime)}. A total of {reporting_props.currentFrameNum} frame(s) were rendered.")
+                self.message_box(context, self.layout, "No job is currently running. Showing results from the latest job.", icon = "INFO")
+                self.wrapped_label(context, self.layout, f"Last job completed after {StringUtil.time_as_string(reporting_props.elapsedTime)}. A total of {reporting_props.currentFrameNum} frame(s) were rendered.")
 
                 if not reporting_props.lastErrorMessage:
                     if FileSystemUtil.get_system_type() in ("unchecked", "unknown"):
                         # We don't know how to open the directory automatically so just show it
-                        row = self.layout.row()
-                        row.label(text = f"Output is at {reporting_props.outputDirectory}")
+                        self.layout.label(text = f"Output is at {reporting_props.outputDirectory}")
                     else:
-                        row = self.layout.row()
-                        row.operator("spritesheet.open_directory", text = "Open Last Job Output").directory = reporting_props.outputDirectory
+                        self.layout.operator("spritesheet.open_directory", text = "Open Last Job Output").directory = reporting_props.outputDirectory
 
                 # Don't show error message if a job is still running, it would be misleading
                 if reporting_props.lastErrorMessage:
                     self.message_box(context, self.layout, f"Last job ended in error: {reporting_props.lastErrorMessage}", icon = "ERROR")
 
     def draw_active_job_status(self, reporting_props):
-        row = self.layout.row()
-        box = row.box()
-        box.label(text = "Press ESC at any time to cancel job.", icon = "INFO")
-
-        row = self.layout.row()
         progress_percent = math.floor(100 * reporting_props.currentFrameNum / reporting_props.totalNumFrames)
-        row.label(text = f"Rendering frame {reporting_props.currentFrameNum} of {reporting_props.totalNumFrames} ({progress_percent}% complete).")
-
-        row = self.layout.row()
-        row.label(text = f"Elapsed time: {StringUtil.time_as_string(reporting_props.elapsedTime)}")
-
-        row = self.layout.row()
         time_remaining = reporting_props.estimated_time_remaining()
         time_remaining_str = StringUtil.time_as_string(time_remaining) if time_remaining is not None else "Calculating.."
-        row.label(text = f"Estimated time remaining: {time_remaining_str}")
+
+        box = self.layout.box()
+        box.label(text = "Press ESC at any time to cancel job.", icon = "INFO")
+
+        self.layout.label(text = f"Rendering frame {reporting_props.currentFrameNum} of {reporting_props.totalNumFrames} ({progress_percent}% complete).")
+        self.layout.label(text = f"Elapsed time: {StringUtil.time_as_string(reporting_props.elapsedTime)}")
+        self.layout.label(text = f"Estimated time remaining: {time_remaining_str}")
 
     def draw_render_disabled_reason(self, context: bpy.types.Context):
+        props = context.scene.SpritesheetPropertyGroup
+
         box = self.message_box(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason, icon = "ERROR")
 
         # Hacky: check for keywords in the error string to expose some functionality
         reason_lower = SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason.lower()
         if "addon preferences" in reason_lower:
-            row = box.row()
-            row.operator("spritesheet.showprefs", text = "Show Addon Preferences")
+            box.operator("spritesheet.showprefs", text = "Show Addon Preferences")
 
             if "imagemagick" in reason_lower:
-                row = box.row()
-                row.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")
+                box.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")
         elif "orthographic" in reason_lower:
-            row = box.row()
-            row.operator("spritesheet.configure_render_camera", text = "Make Camera Ortho")
+            box.operator("spritesheet.configure_render_camera", text = f"Make Camera \"{props.renderCamera.name}\" Ortho")
 
 class SPRITESHEET_PT_MaterialsPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_materials"
@@ -245,9 +222,7 @@ class SPRITESHEET_PT_MaterialsPanel(BaseAddonPanel, bpy.types.Panel):
         props = context.scene.SpritesheetPropertyGroup
 
         self.layout.active = props.useMaterials
-
-        row = self.layout.row(align = True)
-        row.operator("spritesheet.add_material_set", text = "Add Material Set", icon = "ADD")
+        self.layout.operator("spritesheet.add_material_set", text = "Add Material Set", icon = "ADD")
 
 class SPRITESHEET_PT_MaterialSetPanel():
     """UI Panel for material sets.
@@ -275,15 +250,8 @@ class SPRITESHEET_PT_MaterialSetPanel():
         props = context.scene.SpritesheetPropertyGroup
         material_set = props.materialSets[self.index]
 
-        split = self.layout.split()
-
-        col = split.column()
-        col.alignment = "LEFT"
-        col.label(text = f"Material Set {self.index + 1}")
-
-        col = split.column()
-        col.alignment = "RIGHT"
-        col.prop(material_set, "name", text = "")
+        self.layout.use_property_split = True
+        self.layout.prop(material_set, "name", text = f"Material Set {self.index + 1}")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
@@ -291,27 +259,20 @@ class SPRITESHEET_PT_MaterialSetPanel():
 
         self.layout.active = props.useMaterials
 
-        row = self.layout.row()
-        row.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
-
-        row = self.layout.row()
-        row.prop(material_set, "role")
-
-        row = self.layout.row()
-        row.prop(material_set, "mode")
+        self.layout.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
+        self.layout.prop(material_set, "role")
+        self.layout.prop(material_set, "mode")
 
         if material_set.mode == "shared":
-            row = self.layout.row()
-            row.prop(material_set, "shared_material")
+            self.layout.prop(material_set, "shared_material")
         elif material_set.mode == "individual":
-            row = self.layout.row()
-            self.template_list(row,
-                            "SPRITESHEET_UL_RenderTargetMaterialPropertyList", # Class name
-                            "", # List ID (blank to generate)
-                            material_set, # List items property source
-                            "objectMaterialPairs", # List items property name
-                            material_set, # List index property source
-                            "selectedObjectMaterialPair", # List index property name
+            self.template_list(self.layout,
+                               "SPRITESHEET_UL_RenderTargetMaterialPropertyList", # Class name
+                               "", # List ID (blank to generate)
+                               material_set, # List items property source
+                               "objectMaterialPairs", # List items property name
+                               material_set, # List index property source
+                               "selectedObjectMaterialPair", # List index property name
             )
 
 class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
@@ -333,18 +294,18 @@ class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
 
         col = self.layout.column(heading = "Separate Files by", align = True)
 
-        subcol = col.column()
-        subcol.enabled = props.useAnimations
-        subcol.prop(props, "separateFilesPerAnimation", text = "Animation")
+        sub = col.row()
+        sub.enabled = props.useAnimations
+        sub.prop(props, "separateFilesPerAnimation", text = "Animation")
 
-        subcol = col.column()
-        subcol.enabled = props.rotateObject
-        subcol.prop(props, "separateFilesPerRotation", text = "Rotation")
+        sub = col.row()
+        sub.enabled = props.rotateObject
+        sub.prop(props, "separateFilesPerRotation", text = "Rotation")
 
         # Files are always separated by material set; this can't be changed
-        subcol = col.column()
-        subcol.enabled = False
-        subcol.prop(props, "separateFilesPerMaterial", text = "Material Set")
+        sub = col.row()
+        sub.enabled = False
+        sub.prop(props, "separateFilesPerMaterial", text = "Material Set")
 
 class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_rotationoptions"
@@ -359,15 +320,12 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
         props = context.scene.SpritesheetPropertyGroup
 
         self.layout.active = props.rotateObject
-
-        row = self.layout.row()
-        row.prop(props, "rotationNumber")
+        self.layout.prop(props, "rotationNumber")
 
         if 360 % props.rotationNumber != 0:
             self.message_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.", icon = "ERROR")
 
-        row = self.layout.row()
-        self.template_list(row,
+        self.template_list(self.layout,
                     "SPRITESHEET_UL_RotationRootPropertyList", # Class name
                     "spritesheet_RotationOptionsPanel_rotation_root_list", # List ID (blank to generate)
                     props, # List items property source
@@ -384,14 +342,14 @@ class SPRITESHEET_PT_RenderTargetsPanel(BaseAddonPanel, bpy.types.Panel):
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        row = self.layout.row()
-        self.template_list(row,
+        self.template_list(self.layout,
                            "SPRITESHEET_UL_RenderTargetPropertyList", # Class name
                            "spritesheet_RenderTargetsPanel_target_objects_list", # List ID (blank to generate)
                            props, # List items property source
                            "render_targets", # List items property name
                            props, # List index property source
                            "selected_render_target_index", # List index property name,
+                           min_rows = 4,
                            add_op = "spritesheet.add_render_target",
                            remove_op = "spritesheet.remove_render_target",
                            reorder_up_op = "spritesheet.move_render_target_up",
