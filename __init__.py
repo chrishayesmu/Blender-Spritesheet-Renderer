@@ -162,7 +162,7 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
 
     # UI property lists
     ui_lists.SPRITESHEET_UL_AnimationSelectionPropertyList,
-    ui_lists.SPRITESHEET_UL_ObjectMaterialPairPropertyList,
+    ui_lists.SPRITESHEET_UL_RenderTargetMaterialPropertyList,
     ui_lists.SPRITESHEET_UL_RenderTargetPropertyList,
     ui_lists.SPRITESHEET_UL_RotationRootPropertyList,
 

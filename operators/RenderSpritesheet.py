@@ -108,9 +108,12 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             material_sets_by_role[material_set.role].append({ "index": set_index, "set": material_set })
 
             # While we're already iterating the sets, make sure all the materials are assigned
-            for object_mat_pair in material_set.objectMaterialPairs:
-                if object_mat_pair.material is None:
-                    return (False, f"One or more materials has not been assigned in Material Set {set_index + 1} - {material_set.display_name}.")
+            if material_set.mode == "individual":
+                for object_mat_pair in material_set.objectMaterialPairs:
+                    if object_mat_pair.material is None:
+                        return (False, f"One or more materials has not been assigned in Material Set {set_index + 1} - {material_set.name}.")
+            elif material_set.mode == "shared" and material_set.shared_material is None:
+                return (False, f"The shared material has not been assigned in Material Set {set_index + 1} - {material_set.name}.")
 
         for role, sets in material_sets_by_role.items():
             if len(sets) > 1 and role != "other":
@@ -300,7 +303,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         for material_set_index, material_set in enumerate(material_sets):
             material_number += 1
-            material_set_name = material_set.display_name if material_set else "N/A"
+            material_set_name = material_set.name if material_set else "N/A"
             render_data = []
             temp_dir = tempfile.TemporaryDirectory()
 
@@ -434,8 +437,15 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         props = context.scene.SpritesheetPropertyGroup
 
         for index, target in enumerate(props.render_targets):
-            # Indices match between objects and their entries in the material set
-            target.mesh.materials[0] = material_set.objectMaterialPairs[index].material
+            material: bpy.types.Material
+
+            if material_set.mode == "individual":
+                # Indices match between objects and their entries in the material set
+                material = material_set.objectMaterialPairs[index].material
+            elif material_set.mode == "shared":
+                material = material_set.shared_material
+
+            target.mesh.materials[0] = material
 
     def _base_output_dir(self) -> str:
         if bpy.data.filepath:
@@ -507,7 +517,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 relative_path = os.path.basename(image_path)
 
                 json_data["materialData"].append({
-                    "name": material_set.display_name,
+                    "name": material_set.name,
                     "file": relative_path,
                     "role": material_set.role
                 })

@@ -2,7 +2,7 @@ import bpy
 
 import utils
 
-def _get_camera_control_mode_options(self, context):
+def _get_camera_control_mode_options(self, context: bpy.types.Context):
     #pylint: disable=unused-argument
     props = context.scene.SpritesheetPropertyGroup
 
@@ -20,7 +20,7 @@ def _get_camera_control_mode_options(self, context):
 
     return items
 
-def _get_camera_control_mode(self):
+def _get_camera_control_mode(self) -> int:
     val = self.get("cameraControlMode")
 
     if val is None:
@@ -37,15 +37,6 @@ def _get_camera_control_mode(self):
 
 def _set_camera_control_mode(self, value):
     self["cameraControlMode"] = value
-
-def get_material_name_options(self, context):
-    #pylint: disable=unused-argument
-    items = []
-
-    for material in bpy.data.materials:
-        items.append( (material.name, material.name, "") )
-
-    return items
 
 class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
@@ -77,33 +68,54 @@ class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
         self.material = target.mesh.materials[0]
 
 class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
-    # TODO allow a single material for the entire set (mostly for use with normals)
+
+    def _get_name(self) -> str:
+        name = self.get("name")
+
+        return name if name and not name.isspace() else utils.enum_display_name_from_identifier(self, "role", self.role)
+
+    def _set_name(self, value: str):
+        self["name"] = value
+
+    mode: bpy.props.EnumProperty(
+        name = "Mode",
+        description = "How materials should be assigned within this set",
+        items = [
+            ("individual", "Material Per Target", "Each Render Target is manually assigned a material in this set."),
+            ("shared", "Shared Material", "A single material is chosen which will be applied to every Render Target when this set is being rendered. This is mostly useful for certain effects, such as rendering object normals from the camera.")
+        ],
+        default = "individual"
+    )
 
     name: bpy.props.StringProperty(
         name = "Set Name",
-        description = "(Optional) A user-friendly name you can supply to help you keep track of your material sets. If not provided, the material set's role will be displayed instead"
-    )
-
-    role: bpy.props.EnumProperty(
-        name = "Role",
-        description = "How this material set is used. Does not impact the rendered images, but is included in output metadata for import to other programs",
-        items = [
-            ("albedo", "Albedo/Base Color", "This material provides the albedo, or base color, of the object."),
-            ("mask_unity", "Mask (Unity)", "This material is a Unity mask texture, where the red channel is metallic, green is occlusion, blue is the detail mask, and alpha is smoothness."),
-            ("normal_unity", "Normal (Unity)", "This material is a normal map for use in Unity (tangent space, Y+)."),
-            ("other", "Other", "Any use not fitting the options above.")
-        ]
+        description = "(Optional) A user-friendly name you can supply to help you keep track of your material sets. If not provided, the material set's role will be displayed instead",
+        get = _get_name,
+        set = _set_name
     )
 
     objectMaterialPairs: bpy.props.CollectionProperty(type = RenderTargetMaterialPropertyGroup)
+
+    role: bpy.props.EnumProperty(
+        name = "Role",
+        description = "How the output from this material set will be used. Does not impact the rendered images, but is included in output metadata for import to other programs",
+        items = [
+            ("albedo", "Albedo/Base Color", "This material set provides the albedo, or base color, of the object."),
+            ("mask_unity", "Mask (Unity)", "This material set creates a Unity mask texture, where the red channel is metallic, green is occlusion, blue is the detail mask, and alpha is smoothness."),
+            ("normal_unity", "Normal (Unity)", "This material set creates a normal map for use in Unity (tangent space, Y+)."),
+            ("other", "Other", "Any use not fitting the options above.")
+        ]
+    )
 
     selectedObjectMaterialPair: bpy.props.IntProperty(
         get = lambda self: -1 # dummy getter and no setter means items in the list can't be selected
     )
 
-    @property
-    def display_name(self) -> str:
-        return self.name if self.name else utils.enum_display_name_from_identifier(self, "role", self.role)
+    shared_material: bpy.props.PointerProperty(
+        name = "Material",
+        description = "The material to use for all Render Targets while rendering this material set",
+        type = bpy.types.Material
+    )
 
 class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 

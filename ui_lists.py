@@ -12,7 +12,7 @@ class SPRITESHEET_UL_AnimationSelectionPropertyList(bpy.types.UIList):
         col.alignment = "RIGHT"
         col.label(text = f"{item.numFrames} frames")
 
-class SPRITESHEET_UL_ObjectMaterialPairPropertyList(bpy.types.UIList):
+class SPRITESHEET_UL_RenderTargetMaterialPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 

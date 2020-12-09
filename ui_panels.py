@@ -283,7 +283,7 @@ class SPRITESHEET_PT_MaterialSetPanel():
 
         col = split.column()
         col.alignment = "RIGHT"
-        col.label(text = material_set.display_name)
+        col.prop(material_set, "name", text = "")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
@@ -295,20 +295,24 @@ class SPRITESHEET_PT_MaterialSetPanel():
         row.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
 
         row = self.layout.row()
-        row.prop(material_set, "name")
-
-        row = self.layout.row()
         row.prop(material_set, "role")
 
         row = self.layout.row()
-        self.template_list(row,
-                           "SPRITESHEET_UL_ObjectMaterialPairPropertyList", # Class name
-                           "", # List ID (blank to generate)
-                           material_set, # List items property source
-                           "objectMaterialPairs", # List items property name
-                           material_set, # List index property source
-                           "selectedObjectMaterialPair", # List index property name
-        )
+        row.prop(material_set, "mode")
+
+        if material_set.mode == "shared":
+            row = self.layout.row()
+            row.prop(material_set, "shared_material")
+        elif material_set.mode == "individual":
+            row = self.layout.row()
+            self.template_list(row,
+                            "SPRITESHEET_UL_RenderTargetMaterialPropertyList", # Class name
+                            "", # List ID (blank to generate)
+                            material_set, # List items property source
+                            "objectMaterialPairs", # List items property name
+                            material_set, # List index property source
+                            "selectedObjectMaterialPair", # List index property name
+            )
 
 class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_outputproperties"
