@@ -17,17 +17,17 @@ def fit_camera_to_render_targets(context: bpy.types.Context):
 def optimize_for_action(context: bpy.types.Context, action: bpy.types.Action):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_action(context, props.renderCamera, props.render_camera_obj, action)
+    _optimize_for_action(context, props.render_camera, props.render_camera_obj, action)
 
 def optimize_for_all_frames(context: bpy.types.Context, rotations_degrees: List[int], actions: List[bpy.types.Action]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_all_frames(context, props.renderCamera, props.render_camera_obj, rotations_degrees, actions)
+    _optimize_for_all_frames(context, props.render_camera, props.render_camera_obj, rotations_degrees, actions)
 
 def optimize_for_rotation(context: bpy.types.Context, rotation_degrees: List[int], actions: List[bpy.types.Action]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_rotation(context, props.renderCamera, props.render_camera_obj, rotation_degrees, actions)
+    _optimize_for_rotation(context, props.render_camera, props.render_camera_obj, rotation_degrees, actions)
 
 ####################################################################################
 # Internal methods: all return Bounds so they can call each other usefully

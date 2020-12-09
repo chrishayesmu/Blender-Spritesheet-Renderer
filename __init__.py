@@ -91,35 +91,37 @@ def initialize_collections(_unused: None):
     if len(props.render_targets) == 0:
         bpy.ops.spritesheet.add_render_target()
 
-    if len(props.materialSets) == 0:
-        # spritesheet.add_material_set's poll method requires useMaterials to be true, so temporarily set it
-        use_materials = props.useMaterials
-        props.useMaterials = True
+    if len(props.material_sets) == 0:
+        # spritesheet.add_material_set's poll method requires control_materials to be true, so temporarily set it
+        use_materials = props.control_materials
+        props.control_materials = True
         bpy.ops.spritesheet.add_material_set()
-        props.useMaterials = use_materials
+        props.control_materials = use_materials
 
     # Each material set should have the same number of items as there are render targets
     num_render_targets = len(props.render_targets)
-    for material_set in props.materialSets:
-        assert len(material_set.objectMaterialPairs) <= num_render_targets, f"There are more objectMaterialPairs in material set {material_set} than there are render targets"
+    for material_set in props.material_sets:
+        assert len(material_set.materials) <= num_render_targets, f"There are more materials in material set {material_set} than there are render targets"
 
-        while len(material_set.objectMaterialPairs) < num_render_targets:
-            pair = material_set.objectMaterialPairs.add()
-            pair.set_material_from_mesh(bpy.context, len(material_set.objectMaterialPairs) - 1)
+        while len(material_set.materials) < num_render_targets:
+            pair = material_set.materials.add()
+            pair.set_material_from_mesh(bpy.context, len(material_set.materials) - 1)
 
-    for i in range(0, len(props.materialSets)):
+    for i in range(0, len(props.material_sets)):
         ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
 
 @persistent
 def populate_animation_selections(_unused: None):
+    # TODO: this keeps resetting animations to selected = True every time it fires
+
     scene = bpy.context.scene
     props = scene.SpritesheetPropertyGroup
-    props.animationSelections.clear()
+    props.animation_selections.clear()
 
     for _, action in enumerate(bpy.data.actions):
-        selection = props.animationSelections.add()
+        selection = props.animation_selections.add()
         selection.name = action.name
-        selection.numFrames = math.ceil(action.frame_range[1]) - math.floor(action.frame_range[0])
+        selection.num_frames = math.ceil(action.frame_range[1]) - math.floor(action.frame_range[0])
 
     return 10.0
 
@@ -127,14 +129,13 @@ def populate_animation_selections(_unused: None):
 def reset_reporting_props(_unused: None):
     reporting_props = bpy.context.scene.ReportingPropertyGroup
 
-    reporting_props.currentFrameNum = 0
-    reporting_props.elapsedTime = 0
-    reporting_props.hasAnyJobStarted = False
-    reporting_props.jobInProgress = False
-    reporting_props.lastErrorMessage = ""
-    reporting_props.outputDirectory = ""
-    reporting_props.systemType = FileSystemUtil.get_system_type()
-    reporting_props.totalNumFrames = 0
+    reporting_props.current_frame_num = 0
+    reporting_props.elapsed_time = 0
+    reporting_props.has_any_job_started = False
+    reporting_props.job_in_progress = False
+    reporting_props.last_error_message = ""
+    reporting_props.output_directory = ""
+    reporting_props.total_num_frames = 0
 
 classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.types.Operator]]] = [
     # Property groups

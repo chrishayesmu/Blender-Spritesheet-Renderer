@@ -9,18 +9,18 @@ class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         props = context.scene.SpritesheetPropertyGroup
-        return props.useMaterials
+        return props.control_materials
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        material_set = props.materialSets.add()
+        material_set = props.material_sets.add()
 
         # Each material set should have a number of items equal to the number of render targets
         for _ in range (0, len(props.render_targets)):
-            material_set.objectMaterialPairs.add()
+            material_set.materials.add()
 
         # Register a new UI panel to display this material set
-        index = len(props.materialSets) - 1
+        index = len(props.material_sets) - 1
         ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(index)
 
         return {'FINISHED'}
@@ -35,14 +35,14 @@ class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
     def poll(cls, context):
         # Don't allow removing the last material set
         props = context.scene.SpritesheetPropertyGroup
-        return props.useMaterials and len(props.materialSets) > 1
+        return props.control_materials and len(props.material_sets) > 1
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        if self.index < 0 or self.index >= len(props.materialSets):
+        if self.index < 0 or self.index >= len(props.material_sets):
             return {'CANCELLED'}
 
-        props.materialSets.remove(self.index)
+        props.material_sets.remove(self.index)
 
         return {'FINISHED'}
 
@@ -66,8 +66,8 @@ class SPRITESHEET_OT_MoveRenderTargetUpOperator(bpy.types.Operator):
         props.selected_render_target_index = new_index
 
         # Repeat this swap for material sets to stay in sync
-        for material_set in props.materialSets:
-            material_set.objectMaterialPairs.move(index, new_index)
+        for material_set in props.material_sets:
+            material_set.materials.move(index, new_index)
 
         return {'FINISHED'}
 
@@ -91,8 +91,8 @@ class SPRITESHEET_OT_MoveRenderTargetDownOperator(bpy.types.Operator):
         props.selected_render_target_index = new_index
 
         # Repeat this swap for material sets to stay in sync
-        for material_set in props.materialSets:
-            material_set.objectMaterialPairs.move(index, new_index)
+        for material_set in props.material_sets:
+            material_set.materials.move(index, new_index)
 
         return {'FINISHED'}
 
@@ -106,8 +106,8 @@ class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
         props.render_targets.add()
 
         # Iterate material sets and add items to keep them in sync
-        for material_set in props.materialSets:
-            material_set.objectMaterialPairs.add()
+        for material_set in props.material_sets:
+            material_set.materials.add()
 
         return {'FINISHED'}
 
@@ -129,7 +129,7 @@ class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
 
         props.render_targets.remove(props.selected_render_target_index)
 
-        for material_set in props.materialSets:
-            material_set.objectMaterialPairs.remove(props.selected_render_target_index)
+        for material_set in props.material_sets:
+            material_set.materials.remove(props.selected_render_target_index)
 
         return {'FINISHED'}

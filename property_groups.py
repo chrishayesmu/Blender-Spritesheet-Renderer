@@ -11,17 +11,17 @@ def _get_camera_control_mode_options(self, context: bpy.types.Context):
         ("move_each_frame", "Fit Each Frame", "The camera will be adjusted before every render frame to fit the Target Object. Note that this will prevent the appearance of movement in the spritesheet.", 1)
     ]
 
-    if props.useAnimations:
+    if props.control_animations:
         items.append(("move_each_animation", "Fit Each Animation", "The camera will be adjusted at the start of each animation, so that the entire animation is rendered without subsequently moving the camera.", 2))
 
-    if props.rotateObject:
+    if props.control_rotation:
         items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time the Target Object is rotated, so that all frames for the rotation (including animations if enabled) " +
                                                                  "are rendered without subsequently moving the camera.", 3))
 
     return items
 
 def _get_camera_control_mode(self) -> int:
-    val = self.get("cameraControlMode")
+    val = self.get("camera_control_mode")
 
     if val is None:
         val = 0
@@ -36,7 +36,7 @@ def _get_camera_control_mode(self) -> int:
     return val
 
 def _set_camera_control_mode(self, value):
-    self["cameraControlMode"] = value
+    self["camera_control_mode"] = value
 
 class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
@@ -44,9 +44,9 @@ class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
         default = ""
     )
 
-    isSelectedForExport: bpy.props.BoolProperty(default = True)
+    is_selected_for_export: bpy.props.BoolProperty(default = True)
 
-    numFrames: bpy.props.IntProperty()
+    num_frames: bpy.props.IntProperty()
 
 class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
     # You can only make CollectionProperties out of PropertyGroups, so this class just wraps bpy.types.Material
@@ -93,7 +93,7 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         set = _set_name
     )
 
-    objectMaterialPairs: bpy.props.CollectionProperty(type = RenderTargetMaterialPropertyGroup)
+    materials: bpy.props.CollectionProperty(type = RenderTargetMaterialPropertyGroup)
 
     role: bpy.props.EnumProperty(
         name = "Role",
@@ -106,7 +106,7 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
-    selectedObjectMaterialPair: bpy.props.IntProperty(
+    selected_material_index: bpy.props.IntProperty(
         get = lambda self: -1 # dummy getter and no setter means items in the list can't be selected
     )
 
@@ -134,8 +134,8 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
             # Figure out which index this object is, because it's the same in the material sets
             index = list(props.render_targets).index(self)
 
-            for material_set in props.materialSets:
-                material_set.objectMaterialPairs[index].set_material_from_mesh(context, index)
+            for material_set in props.material_sets:
+                material_set.materials[index].set_material_from_mesh(context, index)
 
         self.previous_mesh = self.mesh
 
@@ -158,94 +158,89 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
     )
 
 class ReportingPropertyGroup(bpy.types.PropertyGroup):
-    currentFrameNum: bpy.props.IntProperty() # which frame we are currently rendering
+    current_frame_num: bpy.props.IntProperty() # which frame we are currently rendering
 
-    elapsedTime: bpy.props.FloatProperty() # how much time has elapsed in the current job, in seconds
+    elapsed_time: bpy.props.FloatProperty() # how much time has elapsed in the current job, in seconds
 
-    hasAnyJobStarted: bpy.props.BoolProperty() # whether any job has started in the current session
+    has_any_job_started: bpy.props.BoolProperty() # whether any job has started in the current session
 
-    jobInProgress: bpy.props.BoolProperty() # whether a job is running right now
+    job_in_progress: bpy.props.BoolProperty() # whether a job is running right now
 
-    lastErrorMessage: bpy.props.StringProperty() # the last error reported by a job (generally job-ending)
+    last_error_message: bpy.props.StringProperty() # the last error reported by a job (generally job-ending)
 
-    outputDirectory: bpy.props.StringProperty() # the absolute path of the directory of the final spritesheet/JSON output
+    output_directory: bpy.props.StringProperty() # the absolute path of the directory of the final spritesheet/JSON output
 
-    outputToTerminal: bpy.props.BoolProperty(
+    output_to_terminal: bpy.props.BoolProperty(
         name = "Terminal",
         description = "If true, render jobs will print job progress to the system console (stdout)",
         default = False
     )
 
-    outputToUI: bpy.props.BoolProperty(
+    output_to_panel: bpy.props.BoolProperty(
         name = "UI",
         description = "If true, render jobs will print job progress in the Job Management panel",
         default = True
     )
 
-    systemType: bpy.props.EnumProperty( # what kind of file explorer is available on this system
-        items = [
-            ("unchecked",  "", ""),
-            ("unknown", "", ""),
-            ("windows", "", "")
-        ]
-    )
+    total_num_frames: bpy.props.IntProperty() # the total number of frames which will be rendered
 
-    totalNumFrames: bpy.props.IntProperty() # the total number of frames which will be rendered
-
+    @property
     def estimated_time_remaining(self):
-        if self.currentFrameNum == 0 or self.totalNumFrames == 0:
+        if self.current_frame_num == 0 or self.total_num_frames == 0:
             return None
 
         # This isn't fully accurate since we have some time-consuming tasks regardless of the number of
         # frames, but render time is the vast majority of any substantial job, so close enough
-        time_per_frame = self.elapsedTime / self.currentFrameNum
-        return (self.totalNumFrames - self.currentFrameNum) * time_per_frame
+        time_per_frame = self.elapsed_time / self.current_frame_num
+        return (self.total_num_frames - self.current_frame_num) * time_per_frame
 
 class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     """Property group for spritesheet rendering configuration"""
 
     def _on_render_camera_updated(self, _context):
-        if self.renderCamera is None:
+        if self.render_camera is None:
             self.render_camera_obj = None
         else:
-            self.render_camera_obj = utils.find_object_data_for_camera(self.renderCamera)
+            self.render_camera_obj = utils.find_object_data_for_camera(self.render_camera)
 
     #### Animation data
     # TODO: make animations into animation sets
-    activeAnimationSelectionIndex: bpy.props.IntProperty()
+    selected_animation_index: bpy.props.IntProperty(
+        get = lambda self: -1
+    )
 
-    animationSelections: bpy.props.CollectionProperty(type = AnimationSelectionPropertyGroup)
+    animation_selections: bpy.props.CollectionProperty(type = AnimationSelectionPropertyGroup)
 
-    outputFrameRate: bpy.props.IntProperty(
+    output_frame_rate: bpy.props.IntProperty(
         name = "Output Frame Rate",
         description = "The frame rate of the animation in the spritesheet",
         default = 24,
         min = 1
     )
 
-    useAnimations: bpy.props.BoolProperty(
+    control_animations: bpy.props.BoolProperty(
         name = "Animate During Render",
         description = "If true, the Render Targets will be animated while rendering, with one sprite being emitted per frame of animation",
         default = False
     )
 
     ### Materials data
-    materialSets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
+    material_sets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
 
-    useMaterials: bpy.props.BoolProperty(
+    control_materials: bpy.props.BoolProperty(
         name = "Render Multiple Materials",
         description = "If true, the Render Targets will be rendered once for each material set",
         default = False
     )
 
     ### Camera options
-    controlCamera: bpy.props.BoolProperty(
+    control_camera: bpy.props.BoolProperty(
         name = "Control Camera",
         description = "If true, the Render Camera will be moved and adjusted to best fit all Render Targets in view",
         default = False
     )
 
-    cameraControlMode: bpy.props.EnumProperty(
+    camera_control_mode: bpy.props.EnumProperty(
         name = "Control Style",
         description = "How to control the Render Camera",
         items = _get_camera_control_mode_options,
@@ -253,7 +248,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         set = _set_camera_control_mode
     )
 
-    renderCamera: bpy.props.PointerProperty(
+    render_camera: bpy.props.PointerProperty(
         name = "Render Camera",
         description = "The camera to control during rendering",
         type = bpy.types.Object,
@@ -263,14 +258,14 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     render_camera_obj: bpy.props.PointerProperty(type = bpy.types.Object)
 
     ### Rotation options
-    rotateObject: bpy.props.BoolProperty(
-        name = "Rotate Objects",
+    control_rotation: bpy.props.BoolProperty(
+        name = "Control Rotation",
         description = "Whether to rotate the Render Target. All targets will be rotated simultaneously, but you may choose an object to rotate each around (such as a parent or armature)"
     )
 
     # TODO: add a rotation mode option so that you can rotate either a single object (presumably a parent of the rest of them) or each object individually
 
-    rotationNumber: bpy.props.IntProperty(
+    num_rotations: bpy.props.IntProperty(
         name = "Total Angles",
         description = "How many rotations to perform",
         default = 8,
@@ -278,7 +273,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         max = 72 # 5 degrees movement per render should be fine-grained enough for anyone
     )
 
-    selectedRotationRootIndex: bpy.props.IntProperty(
+    selected_rotation_root_index: bpy.props.IntProperty(
         get = lambda self: -1
     )
 
@@ -291,31 +286,31 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     selected_render_target_index: bpy.props.IntProperty()
 
     ### Output file properties
-    padToPowerOfTwo: bpy.props.BoolProperty(
+    pad_output_to_power_of_two: bpy.props.BoolProperty(
         name = "Pad to Power-of-Two",
         description = "If true, all output images will be padded with transparent pixels to the smallest power-of-two size that can fit the original output",
         default = False
     )
 
-    separateFilesPerAnimation: bpy.props.BoolProperty(
+    separate_files_per_animation: bpy.props.BoolProperty(
         name = "Separate Files Per Animation",
         description = "If 'Control Animations' is enabled, this will generate one output file per animation action. Otherwise, all actions will be combined in a single file",
         default = False
     )
 
-    separateFilesPerMaterial: bpy.props.BoolProperty(
+    separate_files_per_material: bpy.props.BoolProperty(
         name = "Separate Files Per Material Set",
         description = "If 'Control Materials' is enabled, this will generate one output file per material set. This cannot be disabled",
         default = True
     )
 
-    separateFilesPerRotation: bpy.props.BoolProperty(
+    separate_files_per_rotation: bpy.props.BoolProperty(
         name = "Separate Files Per Rotation",
         description = "If 'Rotate During Render' is enabled, this will generate one output file per rotation option",
         default = False
     )
 
-    spriteSize: bpy.props.IntVectorProperty(
+    sprite_size: bpy.props.IntVectorProperty(
         name = "Sprite Size",
         description = "How large each individual sprite should be",
         default = (128, 128),

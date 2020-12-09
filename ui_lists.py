@@ -4,12 +4,12 @@ class SPRITESHEET_UL_AnimationSelectionPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 
-        layout.prop(item, "isSelectedForExport", text = " " + item.name)
+        layout.prop(item, "is_selected_for_export", text = " " + item.name)
 
         col = layout.column()
-        col.active = item.isSelectedForExport
+        col.active = item.is_selected_for_export
         col.alignment = "RIGHT"
-        col.label(text = f"{item.numFrames} frames")
+        col.label(text = f"{item.num_frames} frames")
 
 class SPRITESHEET_UL_RenderTargetMaterialPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
