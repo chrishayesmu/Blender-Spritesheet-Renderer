@@ -20,7 +20,7 @@ class SPRITESHEET_UL_ObjectMaterialPairPropertyList(bpy.types.UIList):
 
         if props.render_targets[index].mesh:
             layout.label(text = props.render_targets[index].mesh.name, icon = "MESH_DATA")
-            layout.prop(item, "materialName", text = "", icon = "MATERIAL")
+            layout.prop_search(item, "material", bpy.data, "materials", text = "")
         else:
             layout.active = False
             layout.label(text = f"No Mesh Selected in Slot {index + 1}", icon = "MESH_DATA")

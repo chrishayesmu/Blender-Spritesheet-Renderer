@@ -139,7 +139,7 @@ def reset_reporting_props(_unused: None):
 classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.types.Operator]]] = [
     # Property groups
     property_groups.AnimationSelectionPropertyGroup,
-    property_groups.ObjectMaterialPairPropertyGroup,
+    property_groups.RenderTargetMaterialPropertyGroup,
     property_groups.MaterialSetPropertyGroup,
     property_groups.RenderTargetPropertyGroup,
     property_groups.ReportingPropertyGroup,

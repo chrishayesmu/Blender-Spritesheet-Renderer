@@ -107,21 +107,26 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         for set_index, material_set in enumerate(props.materialSets):
             material_sets_by_role[material_set.role].append({ "index": set_index, "set": material_set })
 
+            # While we're already iterating the sets, make sure all the materials are assigned
+            for object_mat_pair in material_set.objectMaterialPairs:
+                if object_mat_pair.material is None:
+                    return (False, f"One or more materials has not been assigned in Material Set {set_index + 1} - {material_set.display_name}.")
+
         for role, sets in material_sets_by_role.items():
             if len(sets) > 1 and role != "other":
                 role_name = utils.enum_display_name_from_identifier(sets[0]["set"], "role", role)
                 set_indices = StringUtil.join_with_commas([str(set_tuple["index"] + 1) for set_tuple in sets])
                 return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role_name}'. This role can only be used once.")
 
-        # Check each Target Object's material slots
+        # Check each render target's material slots
         for index, target in enumerate(props.render_targets):
             num_material_slots = len(target.mesh.materials)
             if num_material_slots > 1:
-                return (False, f"If 'Control Materials' is enabled, each Render Target must have exactly 1 material slot. Object #{index + 1} (\"{target.mesh.name}\") has {num_material_slots}. "
-                              + "(You may need to select child objects instead, or split your mesh by material.)")
+                return (False, f"If 'Control Materials' is enabled, each Render Target must have exactly 1 material slot. Mesh #{index + 1} (\"{target.mesh.name}\") has {num_material_slots}. "
+                              + "(You may need to select child meshes instead, or split your mesh by material.)")
 
             if num_material_slots == 0:
-                return (False, f"If 'Control Materials' is enabled, each Target Object must have exactly 1 material slot. Object #{index + 1} (\"{target.mesh.name}\") has none.")
+                return (False, f"If 'Control Materials' is enabled, each Render Target must have exactly 1 material slot. Mesh #{index + 1} (\"{target.mesh.name}\") has none.")
 
         return (True, None)
 
@@ -421,9 +426,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         for index, target in enumerate(props.render_targets):
             # Indices match between objects and their entries in the material set
-            material_name = material_set.objectMaterialPairs[index].materialName
-            material = bpy.data.materials.get(material_name)
-            target.mesh.materials[0] = material
+            target.mesh.materials[0] = material_set.objectMaterialPairs[index].material
 
     def _base_output_dir(self) -> str:
         if bpy.data.filepath:

@@ -60,12 +60,10 @@ class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
 
     numFrames: bpy.props.IntProperty()
 
-class ObjectMaterialPairPropertyGroup(bpy.types.PropertyGroup):
-    # TODO should this be a pointer property?
-    materialName: bpy.props.EnumProperty(
-        name = "Material Name",
-        description = "Which material will be applied to this object while this material set is rendering.",
-        items = get_material_name_options
+class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
+    material: bpy.props.PointerProperty(
+        name = "Material",
+        type = bpy.types.Material
     )
 
     def set_material_from_mesh(self, context: bpy.types.Context, mesh_index: int):
@@ -76,8 +74,7 @@ class ObjectMaterialPairPropertyGroup(bpy.types.PropertyGroup):
         if not target.mesh or len(target.mesh.materials) == 0:
             return
 
-        self.materialName = target.mesh.materials[0].name
-
+        self.material = target.mesh.materials[0]
 
 class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
     # TODO allow a single material for the entire set (mostly for use with normals)
@@ -98,7 +95,7 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
-    objectMaterialPairs: bpy.props.CollectionProperty(type = ObjectMaterialPairPropertyGroup)
+    objectMaterialPairs: bpy.props.CollectionProperty(type = RenderTargetMaterialPropertyGroup)
 
     selectedObjectMaterialPair: bpy.props.IntProperty(
         get = lambda self: -1 # dummy getter and no setter means items in the list can't be selected
@@ -145,7 +142,7 @@ class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
     rotation_root: bpy.props.PointerProperty(
         name = "Rotation Root",
-        description = "If 'Rotate Object' is set, this object will be rotated instead of the Render Target. This is useful for parent objects or armatures. If unset, the Render Target is rotated",
+        description = "If 'Control Rotation' is set, this object will be rotated instead of the Render Target. This is useful for parent objects or armatures. If not set, the Render Target is rotated",
         type = bpy.types.Object
     )
 
@@ -217,7 +214,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
 
     useAnimations: bpy.props.BoolProperty(
         name = "Animate During Render",
-        description = "If true, the Target Object will be animated during rendering",
+        description = "If true, the Render Targets will be animated while rendering, with one sprite being emitted per frame of animation",
         default = False
     )
 
@@ -226,14 +223,14 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
 
     useMaterials: bpy.props.BoolProperty(
         name = "Render Multiple Materials",
-        description = "If true, the target object will be rendered once for each selected material",
+        description = "If true, the Render Targets will be rendered once for each material set",
         default = False
     )
 
     ### Camera options
     controlCamera: bpy.props.BoolProperty(
         name = "Control Camera",
-        description = "If true, the Render Camera will be moved and adjusted to best fit the Target Object in view",
+        description = "If true, the Render Camera will be moved and adjusted to best fit all Render Targets in view",
         default = False
     )
 
@@ -257,7 +254,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     ### Rotation options
     rotateObject: bpy.props.BoolProperty(
         name = "Rotate Objects",
-        description = "Whether to rotate the target objects. All objects will be rotated simultaneously, but you may choose an object to rotate each around (such as a parent or armature)"
+        description = "Whether to rotate the Render Target. All targets will be rotated simultaneously, but you may choose an object to rotate each around (such as a parent or armature)"
     )
 
     # TODO: add a rotation mode option so that you can rotate either a single object (presumably a parent of the rest of them) or each object individually

@@ -2,8 +2,6 @@ import bpy
 from mathutils import Vector
 from typing import Dict
 
-import utils
-
 class SceneSnapshot:
 
     def __init__(self, context):

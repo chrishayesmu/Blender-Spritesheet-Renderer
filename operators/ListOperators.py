@@ -78,10 +78,10 @@ class SPRITESHEET_OT_MoveRenderTargetUpOperator(bpy.types.Operator):
         index = props.selected_render_target_index
         new_index = index - 1
 
-        # TODO repeat this swap for material sets to stay in sync
         props.render_targets.move(index, new_index)
         props.selected_render_target_index = new_index
 
+        # Repeat this swap for material sets to stay in sync
         for material_set in props.materialSets:
             material_set.objectMaterialPairs.move(index, new_index)
 
@@ -103,10 +103,10 @@ class SPRITESHEET_OT_MoveRenderTargetDownOperator(bpy.types.Operator):
         index = props.selected_render_target_index
         new_index = index + 1
 
-        # TODO repeat this swap for material sets to stay in sync
         props.render_targets.move(index, new_index)
         props.selected_render_target_index = new_index
 
+        # Repeat this swap for material sets to stay in sync
         for material_set in props.materialSets:
             material_set.objectMaterialPairs.move(index, new_index)
 
