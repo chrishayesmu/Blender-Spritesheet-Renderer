@@ -35,7 +35,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         try:
             validators = [
                 cls._validate_image_magick_install,
-                cls._validate_target_objects,
+                cls._validate_render_targets,
                 cls._validate_animation_options,
                 cls._validate_camera_options,
                 cls._validate_material_options
@@ -131,17 +131,26 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         return (True, None)
 
     @classmethod
-    def _validate_target_objects(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
+    def _validate_render_targets(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
         if not props.render_targets or len(props.render_targets) == 0:
-            return (False, "There are no Target Objects set.")
+            return (False, "There are no Render Targets set.")
 
         for index, o in enumerate(props.render_targets):
             obj = o.mesh_object
 
             if obj is None:
                 return (False, f"Target Mesh slot #{index + 1} has no mesh selected. If unwanted, remove the slot.")
+
+        # Check if any mesh is selected twice
+        seen_meshes = []
+
+        for target in props.render_targets:
+            if target.mesh in seen_meshes:
+                return (False, f"Mesh \"{target.mesh.name}\" is referenced more than once in Render Targets.")
+
+            seen_meshes.append(target.mesh)
 
         return (True, None)
 
