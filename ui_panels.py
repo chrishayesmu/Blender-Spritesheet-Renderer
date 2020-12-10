@@ -166,8 +166,25 @@ class SPRITESHEET_PT_AnimationSetPanel():
                             "selected_action_index", # List index property name
         )
 
-        # TODO show a warning if there are actions with different numbers of frames
-        # TODO warn if there are actions that have different starting frames
+        # Show a warning if there are actions with different frame ranges
+        frame_data = animation_set.get_frame_data()
+
+        if frame_data is not None:
+            set_min_frame, set_max_frame, _ = frame_data
+            frame_mismatch = False
+
+            for action in animation_set.get_selected_actions():
+                action_min_frame, action_max_frame, _ = action.get_frame_data()
+                frame_mismatch = frame_mismatch or (action_min_frame != set_min_frame) or (action_max_frame != set_max_frame)
+
+            if frame_mismatch:
+                self.message_box(context,
+                                 self.layout,
+                                 f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_min_frame} to {set_max_frame}).",
+                                 "INFO"
+                )
+
+        # TODO add a preview button
 
 class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_camera"
@@ -302,6 +319,7 @@ class SPRITESHEET_PT_MaterialSetPanel():
         material_set = props.material_sets[self.index]
 
         self.layout.enabled = props.control_materials
+        # TODO add a preview button
 
         self.layout.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
         self.layout.prop(material_set, "role")

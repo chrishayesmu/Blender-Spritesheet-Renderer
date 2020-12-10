@@ -1,6 +1,7 @@
 import bpy
 import collections
 import math
+from typing import List, Optional, Tuple
 
 import utils
 
@@ -61,6 +62,12 @@ class AnimationActionPropertyGroup(bpy.types.PropertyGroup):
         get = lambda self: 0 if not self.action else self.max_frame - self.min_frame + 1
     )
 
+    def get_frame_data(self) -> Optional[Tuple[int, int, int]]:
+        if self.action is None:
+            return None
+
+        return frame_data(self.min_frame, self.max_frame, self.num_frames)
+
 class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
     def _get_name(self) -> str:
         # Prefer name given by user; if none, use the first action name; otherwise just blank
@@ -97,20 +104,26 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     selected_action_index: bpy.props.IntProperty(
+        name = "", # hide name in tooltip
         get = lambda self: -1
     )
 
-    def get_frame_data(self):
+    def get_frame_data(self) -> Optional[Tuple[int, int, int]]:
         if len(self.actions) == 0:
             return None
 
-        frame_min = min(a.min_frame for a in self.actions if a.action is not None)
-        frame_max = max(a.max_frame for a in self.actions if a.action is not None)
+        selected_actions = self.get_selected_actions()
+
+        if len(selected_actions) == 0:
+            return None
+
+        frame_min = min(a.min_frame for a in selected_actions)
+        frame_max = max(a.max_frame for a in selected_actions)
         num_frames = frame_max - frame_min + 1
 
         return frame_data(frame_min, frame_max, num_frames)
 
-    def get_selected_actions(self):
+    def get_selected_actions(self) -> List[AnimationActionPropertyGroup]:
         return list([a for a in self.actions if a.action is not None])
 
 class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
