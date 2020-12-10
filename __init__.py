@@ -24,16 +24,11 @@ ADDON_DIR = os.path.dirname(os.path.realpath(__file__))
 if not ADDON_DIR in sys.path:
     sys.path.append(ADDON_DIR)
 
-from operators import ConfigureRenderCamera
-importlib.reload(ConfigureRenderCamera)
-from operators import ListOperators
-importlib.reload(ListOperators)
-from operators import LocateImageMagick
-importlib.reload(LocateImageMagick)
-from operators import OpenDirectory
-importlib.reload(OpenDirectory)
-from operators import RenderSpritesheet
-importlib.reload(RenderSpritesheet)
+import operators
+importlib.reload(operators)
+
+import render_operator
+importlib.reload(render_operator)
 
 import preferences
 importlib.reload(preferences)
@@ -156,18 +151,18 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
 
     # Operators
     SPRITESHEET_OT_ShowAddonPrefsOperator,
-    ConfigureRenderCamera.SPRITESHEET_OT_ConfigureRenderCameraOperator,
-    ListOperators.SPRITESHEET_OT_AddAnimationSetOperator,
-    ListOperators.SPRITESHEET_OT_RemoveAnimationSetOperator,
-    ListOperators.SPRITESHEET_OT_AddMaterialSetOperator,
-    ListOperators.SPRITESHEET_OT_RemoveMaterialSetOperator,
-    ListOperators.SPRITESHEET_OT_AddRenderTargetOperator,
-    ListOperators.SPRITESHEET_OT_RemoveRenderTargetOperator,
-    ListOperators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
-    ListOperators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
-    LocateImageMagick.SPRITESHEET_OT_LocateImageMagickOperator,
-    OpenDirectory.SPRITESHEET_OT_OpenDirectoryOperator,
-    RenderSpritesheet.SPRITESHEET_OT_RenderSpritesheetOperator,
+    operators.SPRITESHEET_OT_ConfigureRenderCameraOperator,
+    operators.SPRITESHEET_OT_AddAnimationSetOperator,
+    operators.SPRITESHEET_OT_RemoveAnimationSetOperator,
+    operators.SPRITESHEET_OT_AddMaterialSetOperator,
+    operators.SPRITESHEET_OT_RemoveMaterialSetOperator,
+    operators.SPRITESHEET_OT_AddRenderTargetOperator,
+    operators.SPRITESHEET_OT_RemoveRenderTargetOperator,
+    operators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
+    operators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
+    operators.SPRITESHEET_OT_LocateImageMagickOperator,
+    operators.SPRITESHEET_OT_OpenDirectoryOperator,
+    render_operator.SPRITESHEET_OT_RenderSpritesheetOperator,
 
     # UI property lists
     ui_lists.SPRITESHEET_UL_AnimationActionPropertyList,

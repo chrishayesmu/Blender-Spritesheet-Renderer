@@ -267,7 +267,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         if props.control_camera:
             scene.camera = props.render_camera_obj
 
-        animation_sets: List[Optional[bpy.types.Action]]
+        animation_sets: List[Optional[bpy.types.AnimationSetPropertyGroup]]
         separate_files_per_animation: bool
         if props.control_animations:
             animation_sets = props.animation_sets

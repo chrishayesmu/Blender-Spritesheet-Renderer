@@ -1,13 +1,14 @@
 import math
 from mathutils import Vector
+from typing import List, Tuple, Union
 
-def format_number(val, precision = 3):
+def format_number(val: Union[float, Tuple, Vector], precision: int = 3) -> Union[float, Tuple, Vector]:
     if type(val) in [tuple, Vector]:
         return tuple(round(x, precision) for x in val)
-    else:
-        return round(val, precision)
 
-def join_with_commas(elements, separator = ", "):
+    return round(val, precision)
+
+def join_with_commas(elements: List[str], separator: str = ", ") -> str:
     if len(elements) == 0:
         raise ValueError("argument contains no elements")
 
@@ -20,7 +21,7 @@ def join_with_commas(elements, separator = ", "):
     # Join all but the last element, then add the last separately
     return separator.join(elements[:-1]) + separator + "and " + elements[-1]
 
-def time_as_string(time_in_seconds, precision = 0, include_hours = True):
+def time_as_string(time_in_seconds: float, precision: int = 0, include_hours: bool = True) -> str:
     if include_hours:
         hours = math.floor(time_in_seconds / 3600)
         hours_str = str(hours).zfill(2)

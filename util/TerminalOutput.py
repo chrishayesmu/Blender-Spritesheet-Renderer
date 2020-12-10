@@ -1,3 +1,5 @@
+from typing import Optional
+
 class TerminalWriter:
     """
         Simple class that handles writing to a terminal in one continuous operation, avoiding flickering
@@ -5,7 +7,7 @@ class TerminalWriter:
         intended for use with stdout, and only with a terminal connected.
     """
 
-    def __init__(self, stream, suppress_output):
+    def __init__(self, stream, suppress_output: bool):
         self.indent = 0
         self._max_queue_size = 300
         self._out_stream = stream
@@ -19,7 +21,7 @@ class TerminalWriter:
         self._out_stream.write("\x1b[2J\x1b[H")
         self._out_stream.flush()
 
-    def write(self, msg, unpersisted_portion = None, persist_msg = True, ignore_indent = False):
+    def write(self, msg: str, unpersisted_portion: Optional[str] = None, persist_msg: bool = True, ignore_indent: bool = False):
         if self._suppress_output or not self._out_stream.isatty():
             return
 

@@ -2,13 +2,13 @@ import glob
 import math
 import os
 import subprocess
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import preferences
 
 from util import FileSystemUtil
 
-def assemble_frames_into_spritesheet(sprite_size, total_num_frames, temp_dir_path, output_file_path):
+def assemble_frames_into_spritesheet(sprite_size: Tuple[int, int], total_num_frames: int, temp_dir_path: str, output_file_path: str) -> Dict[str, Any]:
     image_magick_args = _image_magick_args(sprite_size, total_num_frames, temp_dir_path, output_file_path)
     process_output = subprocess.run(image_magick_args["argsList"], stdout = subprocess.PIPE, stderr = subprocess.PIPE, cwd = temp_dir_path, text = True, check = False)
 
@@ -18,7 +18,7 @@ def assemble_frames_into_spritesheet(sprite_size, total_num_frames, temp_dir_pat
         "succeeded": process_output.returncode == 0
     }
 
-def locate_image_magick_exe():
+def locate_image_magick_exe() -> Optional[str]:
     system = FileSystemUtil.get_system_type()
     if system != "windows":
         # Only supported for Windows right now
@@ -42,7 +42,7 @@ def locate_image_magick_exe():
 
     return None
 
-def pad_image_to_size(image_path, size):
+def pad_image_to_size(image_path: str, size: Tuple[int, int]) -> bool:
     extent_arg = str(size[0]) + "x" + str(size[1])
 
     args = [
@@ -76,7 +76,7 @@ def validate_image_magick_at_path(path: str = None) -> Tuple[bool, Optional[str]
 
     return (process_output.returncode == 0, str(process_output.stderr))
 
-def _image_magick_args(sprite_size, num_images, temp_dir_path, output_file_path):
+def _image_magick_args(sprite_size: Tuple[int, int], num_images: int, temp_dir_path: str, output_file_path: str) -> Dict[str, Any]:
     # We need the input files to be in this known order, but the command line
     # won't let us pass too many files at once. ImageMagick supports reading in
     # file names from a text file, so we write everything to a temp file and pass that.

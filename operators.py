@@ -1,6 +1,51 @@
 import bpy
 
+import preferences
 import ui_panels
+from util import FileSystemUtil
+from util import ImageMagick
+
+class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
+    bl_idname = "spritesheet.configure_render_camera"
+    bl_label = "Configure Render Camera"
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if props.render_camera:
+            props.render_camera.type = "ORTHO"
+            return {"FINISHED"}
+
+        return {"CANCELLED"}
+
+class SPRITESHEET_OT_LocateImageMagickOperator(bpy.types.Operator):
+    bl_idname = "spritesheet.prefs_locate_imagemagick"
+    bl_label = "Locate ImageMagick Installation"
+
+    def execute(self, _):
+        image_magick_path = ImageMagick.locate_image_magick_exe()
+
+        if not image_magick_path:
+            self.report({"ERROR"}, "Could not locate ImageMagick automatically. You will need to set the path in the add-on preferences manually.")
+            return {"CANCELLED"}
+
+        preferences.PrefsAccess.image_magick_path = image_magick_path
+        self.report({"INFO"}, "Found ImageMagick installation at {}".format(image_magick_path))
+
+        return {"FINISHED"}
+
+class SPRITESHEET_OT_OpenDirectoryOperator(bpy.types.Operator):
+    bl_idname = "spritesheet.open_directory"
+    bl_label = "Open Directory"
+
+    directory: bpy.props.StringProperty()
+
+    def execute(self, _context):
+        return {"FINISHED"} if FileSystemUtil.open_file_explorer(self.directory) else {"CANCELLED"}
+
+########################################################
+# Operators for modifying property groups
+########################################################
 
 class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_animation_set"

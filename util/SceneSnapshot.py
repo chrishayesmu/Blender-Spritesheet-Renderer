@@ -10,7 +10,7 @@ class SceneSnapshot:
 
         # TODO expand the amount we snapshot
 
-        self._frame = scene.frame_current
+        self._frame: int = scene.frame_current
 
         if props.control_camera:
             self._snapshot_camera(context)

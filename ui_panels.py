@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 import preferences
 
-from operators.RenderSpritesheet import SPRITESHEET_OT_RenderSpritesheetOperator
+from render_operator import SPRITESHEET_OT_RenderSpritesheetOperator
 from util import FileSystemUtil
 from util import StringUtil
 from util import UIUtil
