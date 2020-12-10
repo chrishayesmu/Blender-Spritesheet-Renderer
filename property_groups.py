@@ -1,6 +1,10 @@
 import bpy
+import collections
+import math
 
 import utils
+
+frame_data = collections.namedtuple('frame_data', 'frame_min frame_max num_frames')
 
 def _get_camera_control_mode_options(self, context: bpy.types.Context):
     #pylint: disable=unused-argument
@@ -38,15 +42,76 @@ def _get_camera_control_mode(self) -> int:
 def _set_camera_control_mode(self, value):
     self["camera_control_mode"] = value
 
-class AnimationSelectionPropertyGroup(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(
-        name = "Action Name",
-        default = ""
+class AnimationActionPropertyGroup(bpy.types.PropertyGroup):
+    action: bpy.props.PointerProperty(
+        name = "Action",
+        description = "Which action to use for this Render Target during this animation set. If unset, the Render Target will be unanimated",
+        type = bpy.types.Action
     )
 
-    is_selected_for_export: bpy.props.BoolProperty(default = True)
+    max_frame: bpy.props.IntProperty(
+        get = lambda self: -1 if not self.action else math.ceil(self.action.frame_range[1])
+    )
 
-    num_frames: bpy.props.IntProperty()
+    min_frame: bpy.props.IntProperty(
+        get = lambda self: -1 if not self.action else math.floor(self.action.frame_range[0])
+    )
+
+    num_frames: bpy.props.IntProperty(
+        get = lambda self: 0 if not self.action else self.max_frame - self.min_frame + 1
+    )
+
+class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
+    def _get_name(self) -> str:
+        # Prefer name given by user; if none, use the first action name; otherwise just blank
+        name: str = self.get("name")
+
+        if name and name.strip():
+            return name.strip()
+
+        selected_actions = [a.action for a in self.actions if a.action is not None]
+
+        if len(selected_actions) > 0:
+            return selected_actions[0].name.strip()
+
+        return "unnamed"
+
+    def _set_name(self, value):
+        self["name"] = value
+
+    # There should be one action per render target; this is handled elsewhere
+    actions: bpy.props.CollectionProperty(type = AnimationActionPropertyGroup)
+
+    name: bpy.props.StringProperty(
+        name = "Animation Set Name",
+        description = "TBD",
+        get = _get_name,
+        set = _set_name
+    )
+
+    output_frame_rate: bpy.props.IntProperty(
+        name = "Output Frame Rate",
+        description = "The frame rate of this animation set. Not used in rendering, but included in JSON output for other tools to import",
+        default = 24,
+        min = 1
+    )
+
+    selected_action_index: bpy.props.IntProperty(
+        get = lambda self: -1
+    )
+
+    def get_frame_data(self):
+        if len(self.actions) == 0:
+            return None
+
+        frame_min = min(a.min_frame for a in self.actions if a.action is not None)
+        frame_max = max(a.max_frame for a in self.actions if a.action is not None)
+        num_frames = frame_max - frame_min + 1
+
+        return frame_data(frame_min, frame_max, num_frames)
+
+    def get_selected_actions(self):
+        return list([a for a in self.actions if a.action is not None])
 
 class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
     # You can only make CollectionProperties out of PropertyGroups, so this class just wraps bpy.types.Material
@@ -71,7 +136,7 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
     def _get_name(self) -> str:
         name = self.get("name")
 
-        return name if name and not name.isspace() else utils.enum_display_name_from_identifier(self, "role", self.role)
+        return name.strip() if name and name.strip() else utils.enum_display_name_from_identifier(self, "role", self.role)
 
     def _set_name(self, value: str):
         self["name"] = value
@@ -81,7 +146,8 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         description = "How materials should be assigned within this set",
         items = [
             ("individual", "Material Per Target", "Each Render Target is manually assigned a material in this set."),
-            ("shared", "Shared Material", "A single material is chosen which will be applied to every Render Target when this set is being rendered. This is mostly useful for certain effects, such as rendering object normals from the camera.")
+            ("shared", "Shared Material", "A single material is chosen which will be applied to every Render Target when this set is being rendered. " +
+                                          "This is mostly useful for certain effects, such as rendering object normals from the camera's perspective.")
         ],
         default = "individual"
     )
@@ -204,19 +270,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
             self.render_camera_obj = utils.find_object_data_for_camera(self.render_camera)
 
     #### Animation data
-    # TODO: make animations into animation sets
-    selected_animation_index: bpy.props.IntProperty(
-        get = lambda self: -1
-    )
-
-    animation_selections: bpy.props.CollectionProperty(type = AnimationSelectionPropertyGroup)
-
-    output_frame_rate: bpy.props.IntProperty(
-        name = "Output Frame Rate",
-        description = "The frame rate of the animation in the spritesheet",
-        default = 24,
-        min = 1
-    )
+    animation_sets: bpy.props.CollectionProperty(type = AnimationSetPropertyGroup)
 
     control_animations: bpy.props.BoolProperty(
         name = "Animate During Render",
@@ -255,7 +309,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         update = _on_render_camera_updated
     )
 
-    render_camera_obj: bpy.props.PointerProperty(type = bpy.types.Object)
+    render_camera_obj: bpy.props.PointerProperty(type = bpy.types.Object) # Automatically set; not for users
 
     ### Rotation options
     control_rotation: bpy.props.BoolProperty(

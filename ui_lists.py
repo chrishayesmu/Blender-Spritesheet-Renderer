@@ -1,15 +1,26 @@
 import bpy
 
-class SPRITESHEET_UL_AnimationSelectionPropertyList(bpy.types.UIList):
+class SPRITESHEET_UL_AnimationActionPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 
-        layout.prop(item, "is_selected_for_export", text = " " + item.name)
+        props = context.scene.SpritesheetPropertyGroup
 
-        col = layout.column()
-        col.active = item.is_selected_for_export
-        col.alignment = "RIGHT"
-        col.label(text = f"{item.num_frames} frames")
+        if props.render_targets[index].mesh:
+            # Three column layout: mesh name, action and # of frames in action,
+            # with the action selection being the largest item
+            split = layout.split(factor = .3)
+            split.label(text = props.render_targets[index].mesh.name, icon = "MESH_DATA")
+
+            sub = split.split(factor = .7)
+            sub.prop_search(item, "action", bpy.data, "actions", text = "")
+
+            sub = sub.column()
+            sub.alignment = "RIGHT"
+            sub.label(text = f"{item.num_frames} frames")
+        else:
+            layout.active = False
+            layout.label(text = f"No Mesh Selected in Slot {index + 1}", icon = "MESH_DATA")
 
 class SPRITESHEET_UL_RenderTargetMaterialPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):

@@ -2,6 +2,47 @@ import bpy
 
 import ui_panels
 
+class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
+    bl_idname = "spritesheet.add_animation_set"
+    bl_label = "Add Animation Set"
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return props.control_animations
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        animation_set = props.animation_sets.add()
+
+        for _ in range(0, len(props.render_targets)):
+            animation_set.actions.add()
+
+        index = len(props.animation_sets) - 1
+        ui_panels.SPRITESHEET_PT_AnimationSetPanel.create_sub_panel(index)
+
+        return {'FINISHED'}
+
+class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
+    bl_idname = "spritesheet.remove_animation_set"
+    bl_label = "Remove Animation Set"
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return props.control_animations and len(props.animation_sets) > 1
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        if self.index < 0 or self.index >= len(props.animation_sets):
+            return {'CANCELLED'}
+
+        props.animation_sets.remove(self.index)
+
+        return {'FINISHED'}
+
 class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_material_set"
     bl_label = "Add Material Set"
@@ -105,7 +146,10 @@ class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
         props = context.scene.SpritesheetPropertyGroup
         props.render_targets.add()
 
-        # Iterate material sets and add items to keep them in sync
+        # Iterate animation/material sets and add items to keep them in sync
+        for animation_set in props.animation_sets:
+            animation_set.actions.add()
+
         for material_set in props.material_sets:
             material_set.materials.add()
 
@@ -128,6 +172,9 @@ class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
             return {'CANCELLED'}
 
         props.render_targets.remove(props.selected_render_target_index)
+
+        for animation_set in props.animation_sets:
+            animation_set.actions.remove(props.selected_render_target_index)
 
         for material_set in props.material_sets:
             material_set.materials.remove(props.selected_render_target_index)

@@ -1,8 +1,8 @@
 import bpy
-import math
-from typing import List
 from mathutils import Vector
+from typing import List, Optional
 
+from property_groups import AnimationSetPropertyGroup
 from util.Bounds import Bounds
 import utils
 
@@ -14,44 +14,44 @@ def fit_camera_to_render_targets(context: bpy.types.Context):
     _select_only_render_targets(context.scene)
     bpy.ops.view3d.camera_to_view_selected()
 
-def optimize_for_action(context: bpy.types.Context, action: bpy.types.Action):
+def optimize_for_animation_set(context: bpy.types.Context, animation_set: Optional[AnimationSetPropertyGroup]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_action(context, props.render_camera, props.render_camera_obj, action)
+    _optimize_for_animation_set(context, props.render_camera, props.render_camera_obj, animation_set)
 
-def optimize_for_all_frames(context: bpy.types.Context, rotations_degrees: List[int], actions: List[bpy.types.Action]):
+def optimize_for_all_frames(context: bpy.types.Context, rotations_degrees: List[Optional[int]], animation_sets: List[AnimationSetPropertyGroup]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_all_frames(context, props.render_camera, props.render_camera_obj, rotations_degrees, actions)
+    _optimize_for_all_frames(context, props.render_camera, props.render_camera_obj, rotations_degrees, animation_sets)
 
-def optimize_for_rotation(context: bpy.types.Context, rotation_degrees: List[int], actions: List[bpy.types.Action]):
+def optimize_for_rotation(context: bpy.types.Context, rotation_degrees: List[Optional[int]], animation_sets: List[AnimationSetPropertyGroup]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_rotation(context, props.render_camera, props.render_camera_obj, rotation_degrees, actions)
+    _optimize_for_rotation(context, props.render_camera, props.render_camera_obj, rotation_degrees, animation_sets)
 
 ####################################################################################
 # Internal methods: all return Bounds so they can call each other usefully
 ####################################################################################
 
-def _optimize_for_action(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, action: bpy.types.Action):
+def _optimize_for_animation_set(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, animation_set: AnimationSetPropertyGroup):
     if camera.type != "ORTHO":
-        raise RuntimeError("Camera.optimizeForAction currently only works for orthographic cameras")
+        raise RuntimeError("Camera.optimize_for_animation_set currently only works for orthographic cameras")
 
-    max_bounds = _find_bounding_box_for_action(context, camera, camera_obj, action)
+    max_bounds = _find_bounding_box_for_animation_set(context, camera, camera_obj, animation_set)
 
     camera_obj.location = max_bounds.center
     camera.ortho_scale = max(max_bounds.size)
 
     return max_bounds
 
-def _optimize_for_all_frames(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, rotations_degrees: List[int], actions: List[bpy.types.Action]):
+def _optimize_for_all_frames(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, rotations_degrees: List[Optional[int]], animation_sets: List[AnimationSetPropertyGroup]):
     if camera.type != "ORTHO":
-        raise RuntimeError("Camera.optimizeForAllFrames currently only works for orthographic cameras")
+        raise RuntimeError("Camera.optimize_for_all_frames currently only works for orthographic cameras")
 
     cumulative_bounds = None
 
     for angle in rotations_degrees:
-        rotation_bounds = _optimize_for_rotation(context, camera, camera_obj, angle, actions)
+        rotation_bounds = _optimize_for_rotation(context, camera, camera_obj, angle, animation_sets)
 
         if cumulative_bounds is None:
             cumulative_bounds = rotation_bounds
@@ -63,20 +63,20 @@ def _optimize_for_all_frames(context: bpy.types.Context, camera: bpy.types.Camer
 
     return cumulative_bounds
 
-def _optimize_for_rotation(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, rotation_degrees, actions):
+def _optimize_for_rotation(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, rotation_degrees: List[Optional[int]], animation_sets: List[Optional[AnimationSetPropertyGroup]]):
     if camera.type != "ORTHO":
-        raise RuntimeError("Camera.optimizeForRotation currently only works for orthographic cameras")
+        raise RuntimeError("Camera.optimize_for_rotation currently only works for orthographic cameras")
 
     _select_only_render_targets(context.scene)
-
-    cumulative_bounds = None
 
     if rotation_degrees is not None:
         utils.rotate_render_targets(context.scene.SpritesheetPropertyGroup, z_rot_degrees = rotation_degrees)
 
-    for action in actions:
-        if action is not None:
-            current_bounds = _optimize_for_action(context, camera, camera_obj, action)
+    cumulative_bounds = None
+
+    for animation_set in animation_sets:
+        if animation_set is not None:
+            current_bounds = _optimize_for_animation_set(context, camera, camera_obj, animation_set)
         else:
             bpy.ops.view3d.camera_to_view_selected()
             current_bounds = _get_camera_image_plane(camera, camera_obj)
@@ -91,17 +91,16 @@ def _optimize_for_rotation(context: bpy.types.Context, camera: bpy.types.Camera,
 
     return cumulative_bounds
 
-def _find_bounding_box_for_action(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, action):
-    """Returns a Bounds object describing the minimal bounding box that can fit all frames of the action"""
+def _find_bounding_box_for_animation_set(context: bpy.types.Context, camera: bpy.types.Camera, camera_obj: bpy.types.Object, animation_set: AnimationSetPropertyGroup):
+    """Returns a Bounds object describing the minimal bounding box that can fit all frames of the animation set"""
     scene = context.scene
-    frame_min = math.floor(action.frame_range[0])
-    frame_max = math.ceil(action.frame_range[1])
 
     _select_only_render_targets(context.scene)
+    frame_data = animation_set.get_frame_data()
 
     cumulative_bounds = None
 
-    for index in range(frame_min, frame_max + 1):
+    for index in range(frame_data.frame_min, frame_data.frame_max + 1):
         scene.frame_set(index)
         bpy.ops.view3d.camera_to_view_selected()
 

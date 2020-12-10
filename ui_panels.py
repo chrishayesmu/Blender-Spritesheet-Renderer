@@ -115,16 +115,59 @@ class SPRITESHEET_PT_AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
         props = context.scene.SpritesheetPropertyGroup
 
         self.layout.active = props.control_animations
-        self.layout.prop(props, "output_frame_rate")
+        self.layout.operator("spritesheet.add_animation_set", text = "Add Animation Set", icon = "ADD")
+
+class SPRITESHEET_PT_AnimationSetPanel():
+    # See SPRITESHEET_PT_MaterialSetPanel for why this has no parent types
+    bl_label = "" # hidden; see draw_header
+    bl_parent_id = "SPRITESHEET_PT_animations"
+
+    index = 0
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        return cls.index < len(props.animation_sets)
+
+    @classmethod
+    def create_sub_panel(cls, index):
+        UIUtil.create_panel_type(cls, index)
+
+    def draw_header(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        animation_set = props.animation_sets[self.index]
+
+        num_frames = 0
+        selected_actions = animation_set.get_selected_actions()
+        if len(selected_actions) > 0:
+            num_frames = max([a.num_frames for a in selected_actions])
+
+        self.layout.enabled = props.control_animations
+        self.layout.use_property_split = True
+        self.layout.prop(animation_set, "name", text = f"Animation Set {self.index + 1}")
+
+        if num_frames > 0:
+            self.layout.label(text = f"{num_frames} frames")
+
+    def draw(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        animation_set = props.animation_sets[self.index]
+
+        self.layout.enabled = props.control_animations
+        self.layout.operator("spritesheet.remove_animation_set", text = "Remove Set", icon = "REMOVE").index = self.index
 
         self.template_list(self.layout,
-                           "SPRITESHEET_UL_AnimationSelectionPropertyList", # Class name
-                           "", # List ID (blank to generate)
-                           props, # List items property source
-                           "animation_selections", # List items property name
-                           props, # List index property source
-                           "selected_animation_index" # List index property name
+                            "SPRITESHEET_UL_AnimationActionPropertyList", # Class name
+                            "", # List ID (blank to generate)
+                            animation_set, # List items property source
+                            "actions", # List items property name
+                            animation_set, # List index property source
+                            "selected_action_index", # List index property name
         )
+
+        # TODO show a warning if there are actions with different numbers of frames
+        # TODO warn if there are actions that have different starting frames
 
 class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_camera"
@@ -250,6 +293,7 @@ class SPRITESHEET_PT_MaterialSetPanel():
         props = context.scene.SpritesheetPropertyGroup
         material_set = props.material_sets[self.index]
 
+        self.layout.enabled = props.control_materials
         self.layout.use_property_split = True
         self.layout.prop(material_set, "name", text = f"Material Set {self.index + 1}")
 
@@ -257,7 +301,7 @@ class SPRITESHEET_PT_MaterialSetPanel():
         props = context.scene.SpritesheetPropertyGroup
         material_set = props.material_sets[self.index]
 
-        self.layout.active = props.control_materials
+        self.layout.enabled = props.control_materials
 
         self.layout.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
         self.layout.prop(material_set, "role")
@@ -296,7 +340,7 @@ class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
 
         sub = col.row()
         sub.enabled = props.control_animations
-        sub.prop(props, "separate_files_per_animation", text = "Animation")
+        sub.prop(props, "separate_files_per_animation", text = "Animation Set")
 
         sub = col.row()
         sub.enabled = props.control_rotation

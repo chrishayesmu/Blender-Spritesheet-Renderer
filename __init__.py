@@ -91,15 +91,35 @@ def initialize_collections(_unused: None):
     if len(props.render_targets) == 0:
         bpy.ops.spritesheet.add_render_target()
 
+    num_render_targets = len(props.render_targets)
+
+    ### Initialize animation sets
+    if len(props.animation_sets) == 0:
+        # spritesheet.add_animation_set's poll method requires control_animations to be true, so temporarily set it
+        control_animations = props.control_animations
+        props.control_animations = True
+        bpy.ops.spritesheet.add_animation_set()
+        props.control_animations = control_animations
+
+    for animation_set in props.animation_sets:
+        assert len(animation_set.actions) <= num_render_targets, f"There are more actions in animation set {animation_set} than there are render targets"
+
+        while len(animation_set.actions) < num_render_targets:
+            animation_set.actions.add()
+
+    for i in range(0, len(props.animation_sets)):
+        ui_panels.SPRITESHEET_PT_AnimationSetPanel.create_sub_panel(i)
+
+    ### Initialize material sets
+
     if len(props.material_sets) == 0:
         # spritesheet.add_material_set's poll method requires control_materials to be true, so temporarily set it
-        use_materials = props.control_materials
+        control_materials = props.control_materials
         props.control_materials = True
         bpy.ops.spritesheet.add_material_set()
-        props.control_materials = use_materials
+        props.control_materials = control_materials
 
     # Each material set should have the same number of items as there are render targets
-    num_render_targets = len(props.render_targets)
     for material_set in props.material_sets:
         assert len(material_set.materials) <= num_render_targets, f"There are more materials in material set {material_set} than there are render targets"
 
@@ -109,21 +129,6 @@ def initialize_collections(_unused: None):
 
     for i in range(0, len(props.material_sets)):
         ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
-
-@persistent
-def populate_animation_selections(_unused: None):
-    # TODO: this keeps resetting animations to selected = True every time it fires
-
-    scene = bpy.context.scene
-    props = scene.SpritesheetPropertyGroup
-    props.animation_selections.clear()
-
-    for _, action in enumerate(bpy.data.actions):
-        selection = props.animation_selections.add()
-        selection.name = action.name
-        selection.num_frames = math.ceil(action.frame_range[1]) - math.floor(action.frame_range[0])
-
-    return 10.0
 
 @persistent
 def reset_reporting_props(_unused: None):
@@ -139,7 +144,8 @@ def reset_reporting_props(_unused: None):
 
 classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.types.Operator]]] = [
     # Property groups
-    property_groups.AnimationSelectionPropertyGroup,
+    property_groups.AnimationActionPropertyGroup,
+    property_groups.AnimationSetPropertyGroup,
     property_groups.RenderTargetMaterialPropertyGroup,
     property_groups.MaterialSetPropertyGroup,
     property_groups.RenderTargetPropertyGroup,
@@ -151,6 +157,8 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     # Operators
     SPRITESHEET_OT_ShowAddonPrefsOperator,
     ConfigureRenderCamera.SPRITESHEET_OT_ConfigureRenderCameraOperator,
+    ListOperators.SPRITESHEET_OT_AddAnimationSetOperator,
+    ListOperators.SPRITESHEET_OT_RemoveAnimationSetOperator,
     ListOperators.SPRITESHEET_OT_AddMaterialSetOperator,
     ListOperators.SPRITESHEET_OT_RemoveMaterialSetOperator,
     ListOperators.SPRITESHEET_OT_AddRenderTargetOperator,
@@ -162,7 +170,7 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     RenderSpritesheet.SPRITESHEET_OT_RenderSpritesheetOperator,
 
     # UI property lists
-    ui_lists.SPRITESHEET_UL_AnimationSelectionPropertyList,
+    ui_lists.SPRITESHEET_UL_AnimationActionPropertyList,
     ui_lists.SPRITESHEET_UL_RenderTargetMaterialPropertyList,
     ui_lists.SPRITESHEET_UL_RenderTargetPropertyList,
     ui_lists.SPRITESHEET_UL_RotationRootPropertyList,
@@ -188,11 +196,9 @@ def register():
     # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
     start_timer(find_image_magick_exe, first_interval = .1)
     start_timer(initialize_collections, make_partial = True, is_persistent = True)
-    start_timer(populate_animation_selections, make_partial = True, is_persistent = True)
     start_timer(reset_reporting_props, make_partial = True, is_persistent = True)
 
     bpy.app.handlers.load_post.append(initialize_collections)
-    bpy.app.handlers.load_post.append(populate_animation_selections)
     bpy.app.handlers.load_post.append(reset_reporting_props)
 
 def unregister():
@@ -201,7 +207,6 @@ def unregister():
             bpy.app.timers.unregister(timer)
 
     bpy.app.handlers.load_post.remove(initialize_collections)
-    bpy.app.handlers.load_post.remove(populate_animation_selections)
     bpy.app.handlers.load_post.remove(reset_reporting_props)
 
     del bpy.types.Scene.ReportingPropertyGroup
