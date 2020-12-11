@@ -167,22 +167,14 @@ class SPRITESHEET_PT_AnimationSetPanel():
         )
 
         # Show a warning if there are actions with different frame ranges
-        frame_data = animation_set.get_frame_data()
+        set_frame_data = animation_set.get_frame_data()
 
-        if frame_data is not None:
-            set_min_frame, set_max_frame, _ = frame_data
-            frame_mismatch = False
-
-            for action in animation_set.get_selected_actions():
-                action_min_frame, action_max_frame, _ = action.get_frame_data()
-                frame_mismatch = frame_mismatch or (action_min_frame != set_min_frame) or (action_max_frame != set_max_frame)
-
-            if frame_mismatch:
-                self.message_box(context,
-                                 self.layout,
-                                 f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_min_frame} to {set_max_frame}).",
-                                 "INFO"
-                )
+        if set_frame_data is not None and any(action.get_frame_data() != set_frame_data for action in animation_set.get_selected_actions()):
+            self.message_box(context,
+                                self.layout,
+                                f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_frame_data.frame_min} to {set_frame_data.frame_max}).",
+                                "INFO"
+            )
 
         # TODO add a preview button
 
