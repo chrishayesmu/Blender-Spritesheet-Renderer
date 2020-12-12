@@ -195,6 +195,25 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         type = bpy.types.Material
     )
 
+    def assign_materials_to_targets(self, context: bpy.types.Context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        for index, target in enumerate(props.render_targets):
+            target.mesh.materials[0] = self.material_at(index)
+
+    def is_valid(self) -> bool:
+        if self.mode == "shared":
+            return self.shared_material is not None
+
+        # In individual mode we just care that every mesh has a material assigned
+        return not any(item.material is None for item in self.materials)
+
+    def material_at(self, index: int) -> Optional[bpy.types.Material]:
+        assert 0 <= index < len(self.materials)
+
+        return self.materials[index].material if self.mode == "individual" else self.shared_material
+
+
 class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
     def _on_target_mesh_updated(self, context):

@@ -151,17 +151,19 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
 
     # Operators
     SPRITESHEET_OT_ShowAddonPrefsOperator,
-    operators.SPRITESHEET_OT_ConfigureRenderCameraOperator,
     operators.SPRITESHEET_OT_AddAnimationSetOperator,
-    operators.SPRITESHEET_OT_RemoveAnimationSetOperator,
     operators.SPRITESHEET_OT_AddMaterialSetOperator,
-    operators.SPRITESHEET_OT_RemoveMaterialSetOperator,
     operators.SPRITESHEET_OT_AddRenderTargetOperator,
-    operators.SPRITESHEET_OT_RemoveRenderTargetOperator,
+    operators.SPRITESHEET_OT_AssignMaterialSetOperator,
+    operators.SPRITESHEET_OT_ConfigureRenderCameraOperator,
+    operators.SPRITESHEET_OT_LocateImageMagickOperator,
     operators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
     operators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
-    operators.SPRITESHEET_OT_LocateImageMagickOperator,
     operators.SPRITESHEET_OT_OpenDirectoryOperator,
+    operators.SPRITESHEET_OT_RemoveAnimationSetOperator,
+    operators.SPRITESHEET_OT_RemoveMaterialSetOperator,
+    operators.SPRITESHEET_OT_RemoveRenderTargetOperator,
+
     render_operator.SPRITESHEET_OT_RenderSpritesheetOperator,
 
     # UI property lists

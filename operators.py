@@ -8,15 +8,16 @@ from util import ImageMagick
 class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
     bl_idname = "spritesheet.configure_render_camera"
     bl_label = "Configure Render Camera"
+    bl_options = {'UNDO'}
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        if props.render_camera:
-            props.render_camera.type = "ORTHO"
-            return {"FINISHED"}
+        if not props.render_camera:
+            return {"CANCELLED"}
 
-        return {"CANCELLED"}
+        props.render_camera.type = "ORTHO"
+        return {"FINISHED"}
 
 class SPRITESHEET_OT_LocateImageMagickOperator(bpy.types.Operator):
     bl_idname = "spritesheet.prefs_locate_imagemagick"
@@ -44,12 +45,47 @@ class SPRITESHEET_OT_OpenDirectoryOperator(bpy.types.Operator):
         return {"FINISHED"} if FileSystemUtil.open_file_explorer(self.directory) else {"CANCELLED"}
 
 ########################################################
+# Operators for previewing spritesheet props in scene
+########################################################
+
+class SPRITESHEET_OT_AssignMaterialSetOperator(bpy.types.Operator):
+    """Assign all of the materials in this set to their respective targets, so they can be viewed together."""
+    bl_idname = "spritesheet.assign_material_set"
+    bl_label = "Assign Material Set in Scene"
+    bl_options = {'UNDO'}
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return props.control_materials
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        assert 0 <= self.index < len(props.material_sets)
+
+        material_set = props.material_sets[self.index]
+        if not material_set.is_valid():
+            self.report({'ERROR'}, "All materials in this set need to be assigned first.")
+            return {'CANCELLED'}
+
+        material_set.assign_materials_to_targets(context)
+
+        for area in context.window.screen.areas:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
+
+        return {'FINISHED'}
+
+########################################################
 # Operators for modifying property groups
 ########################################################
 
 class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_animation_set"
     bl_label = "Add Animation Set"
+    bl_options = {'UNDO'}
 
     @classmethod
     def poll(cls, context):
@@ -71,6 +107,7 @@ class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
 class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.remove_animation_set"
     bl_label = "Remove Animation Set"
+    bl_options = {'UNDO'}
 
     index: bpy.props.IntProperty()
 
@@ -91,6 +128,7 @@ class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
 class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.add_material_set"
     bl_label = "Add Material Set"
+    bl_options = {'UNDO'}
 
     @classmethod
     def poll(cls, context):
@@ -114,6 +152,7 @@ class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
 class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
     bl_idname = "spritesheet.remove_material_set"
     bl_label = "Remove Material Set"
+    bl_options = {'UNDO'}
 
     index: bpy.props.IntProperty()
 
@@ -136,6 +175,7 @@ class SPRITESHEET_OT_MoveRenderTargetUpOperator(bpy.types.Operator):
     """Moves the selected Render Target up in the list (i.e. from index to index - 1)."""
     bl_idname = "spritesheet.move_render_target_up"
     bl_label = "Move Render Target Up"
+    bl_options = {'UNDO_GROUPED'}
 
     @classmethod
     def poll(cls, context):
@@ -161,6 +201,7 @@ class SPRITESHEET_OT_MoveRenderTargetDownOperator(bpy.types.Operator):
     """Moves the selected Render Target down in the list (i.e. from index to index + 1)."""
     bl_idname = "spritesheet.move_render_target_down"
     bl_label = "Move Render Target Down"
+    bl_options = {'UNDO_GROUPED'}
 
     @classmethod
     def poll(cls, context):
@@ -186,6 +227,7 @@ class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
     """Adds a new, empty Render Target slot to the spritesheet render targets."""
     bl_idname = "spritesheet.add_render_target"
     bl_label = "Add Target Object"
+    bl_options = {'UNDO'}
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
@@ -204,6 +246,7 @@ class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
     """Removes the selected Render Target from the spritesheet render targets."""
     bl_idname = "spritesheet.remove_render_target"
     bl_label = "Remove Render Target"
+    bl_options = {'UNDO'}
 
     @classmethod
     def poll(cls, context):

@@ -158,12 +158,12 @@ class SPRITESHEET_PT_AnimationSetPanel():
         self.layout.operator("spritesheet.remove_animation_set", text = "Remove Set", icon = "REMOVE").index = self.index
 
         self.template_list(self.layout,
-                            "SPRITESHEET_UL_AnimationActionPropertyList", # Class name
-                            "", # List ID (blank to generate)
-                            animation_set, # List items property source
-                            "actions", # List items property name
-                            animation_set, # List index property source
-                            "selected_action_index", # List index property name
+                           "SPRITESHEET_UL_AnimationActionPropertyList", # Class name
+                           "", # List ID (blank to generate)
+                           animation_set, # List items property source
+                           "actions", # List items property name
+                           animation_set, # List index property source
+                           "selected_action_index", # List index property name
         )
 
         # Show a warning if there are actions with different frame ranges
@@ -171,9 +171,9 @@ class SPRITESHEET_PT_AnimationSetPanel():
 
         if set_frame_data is not None and any(action.get_frame_data() != set_frame_data for action in animation_set.get_selected_actions()):
             self.message_box(context,
-                                self.layout,
-                                f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_frame_data.frame_min} to {set_frame_data.frame_max}).",
-                                "INFO"
+                             self.layout,
+                             f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_frame_data.frame_min} to {set_frame_data.frame_max}).",
+                             "INFO"
             )
 
         # TODO add a preview button
@@ -311,9 +311,11 @@ class SPRITESHEET_PT_MaterialSetPanel():
         material_set = props.material_sets[self.index]
 
         self.layout.enabled = props.control_materials
-        # TODO add a preview button
 
-        self.layout.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
+        row = self.layout.row(align = True)
+        row.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
+        row.operator("spritesheet.assign_material_set", text = "Assign in Scene", icon = "HIDE_OFF").index = self.index
+
         self.layout.prop(material_set, "role")
         self.layout.prop(material_set, "mode")
 
