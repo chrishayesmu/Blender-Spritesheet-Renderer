@@ -49,7 +49,7 @@ class SPRITESHEET_OT_OpenDirectoryOperator(bpy.types.Operator):
 ########################################################
 
 class SPRITESHEET_OT_AssignMaterialSetOperator(bpy.types.Operator):
-    """Assign all of the materials in this set to their respective targets, so they can be viewed together."""
+    """Assign all of the materials in this set to their respective targets, so they can be viewed together"""
     bl_idname = "spritesheet.assign_material_set"
     bl_label = "Assign Material Set in Scene"
     bl_options = {'UNDO'}
@@ -78,11 +78,57 @@ class SPRITESHEET_OT_AssignMaterialSetOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class SPRITESHEET_OT_PlayAnimationSetOperator(bpy.types.Operator):
+    """Play this animation set in the viewport to preview how the animations look together."""
+    bl_idname = "spritesheet.play_animation_set"
+    bl_label = "Play Animation Set"
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return props.control_animations
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        assert 0 <= self.index < len(props.animation_sets)
+
+        animation_set = props.animation_sets[self.index]
+
+        try:
+            animation_set.assign_actions_to_targets(context)
+        except Exception as e:
+            message: str = e.message if hasattr(e, "message") else str(e.args[0]) if len(e.args) > 0 else "An unknown error occurred."
+
+            self.report({'ERROR'}, message)
+            print("Error in spritesheet.play_animation_set: " + message)
+            return {'CANCELLED'}
+
+        # Set frame data in the scene; it will loop automatically when started
+        frame_data = animation_set.get_frame_data()
+        context.scene.frame_start, context.scene.frame_end = frame_data.frame_min, frame_data.frame_max
+        context.scene.frame_set(frame_data.frame_min)
+        context.scene.render.fps = animation_set.output_frame_rate
+
+        # For some reason animation_play will pause if something is playing, and that's not what we want for this operator
+        if not context.screen.is_animation_playing:
+            bpy.ops.screen.animation_play()
+
+        # Update all other sets so their UI shows correctly
+        for anim_set in props.animation_sets:
+            anim_set.is_previewing = False
+
+        animation_set.is_previewing = True
+
+        return {'FINISHED'}
+
 ########################################################
 # Operators for modifying property groups
 ########################################################
 
 class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
+    """Add a new animation set"""
     bl_idname = "spritesheet.add_animation_set"
     bl_label = "Add Animation Set"
     bl_options = {'UNDO'}
@@ -105,6 +151,7 @@ class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
+    """Remove this animation set"""
     bl_idname = "spritesheet.remove_animation_set"
     bl_label = "Remove Animation Set"
     bl_options = {'UNDO'}
@@ -121,11 +168,18 @@ class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
         if self.index < 0 or self.index >= len(props.animation_sets):
             return {'CANCELLED'}
 
+        animation_set = props.animation_sets[self.index]
+
+        # Cancel animation if we're removing the active preview; not necessary but nice to have
+        if animation_set.is_previewing and context.screen.is_animation_playing:
+            bpy.ops.screen.animation_cancel(restore_frame = False)
+
         props.animation_sets.remove(self.index)
 
         return {'FINISHED'}
 
 class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
+    """Add a new material set"""
     bl_idname = "spritesheet.add_material_set"
     bl_label = "Add Material Set"
     bl_options = {'UNDO'}
@@ -150,6 +204,7 @@ class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
+    """Remove this material set"""
     bl_idname = "spritesheet.remove_material_set"
     bl_label = "Remove Material Set"
     bl_options = {'UNDO'}

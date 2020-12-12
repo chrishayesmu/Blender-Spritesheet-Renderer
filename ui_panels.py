@@ -148,14 +148,24 @@ class SPRITESHEET_PT_AnimationSetPanel():
         self.layout.prop(animation_set, "name", text = f"Animation Set {self.index + 1}")
 
         if num_frames > 0:
-            self.layout.label(text = f"{num_frames} frames")
+            self.layout.label(text = f"{num_frames} frames at {animation_set.output_frame_rate} fps")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
         animation_set = props.animation_sets[self.index]
 
         self.layout.enabled = props.control_animations
-        self.layout.operator("spritesheet.remove_animation_set", text = "Remove Set", icon = "REMOVE").index = self.index
+
+        row = self.layout.row(align = True)
+        row.operator("spritesheet.remove_animation_set", text = "Remove Set", icon = "REMOVE").index = self.index
+
+        if context.screen.is_animation_playing and animation_set.is_previewing:
+            row.operator("screen.animation_cancel", text = "Pause Playback", icon = "PAUSE").restore_frame = False
+        else:
+            row.operator("spritesheet.play_animation_set", text = "Play in Viewport", icon = "PLAY").index = self.index
+
+        self.layout.separator()
+        self.layout.prop(animation_set, "output_frame_rate")
 
         self.template_list(self.layout,
                            "SPRITESHEET_UL_AnimationActionPropertyList", # Class name

@@ -73,6 +73,17 @@ class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
         bpy.ops.preferences.addon_show(module = __package__)
         return {'FINISHED'}
 
+def check_animation_state():
+    # Periodically check whether animations are playing so we can keep our animation set
+    # status up-to-date. Unfortunately there's no event handler for animation playback starting/stopping.
+    if not bpy.context.screen.is_animation_playing:
+        props = bpy.context.scene.SpritesheetPropertyGroup
+
+        for animation_set in props.animation_sets:
+            animation_set.is_previewing = False
+
+    return 1.0 # check every second for responsiveness, since this is cheap
+
 def find_image_magick_exe():
     # Only look for the exe if the path isn't already set
     if not preferences.PrefsAccess.image_magick_path:
@@ -160,6 +171,7 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     operators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
     operators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
     operators.SPRITESHEET_OT_OpenDirectoryOperator,
+    operators.SPRITESHEET_OT_PlayAnimationSetOperator,
     operators.SPRITESHEET_OT_RemoveAnimationSetOperator,
     operators.SPRITESHEET_OT_RemoveMaterialSetOperator,
     operators.SPRITESHEET_OT_RemoveRenderTargetOperator,
@@ -191,9 +203,10 @@ def register():
     bpy.types.Scene.ReportingPropertyGroup = bpy.props.PointerProperty(type = property_groups.ReportingPropertyGroup)
 
     # Most handlers need to happen when the addon is enabled and also when a new .blend file is opened
+    start_timer(check_animation_state, first_interval = .1, is_persistent = True)
     start_timer(find_image_magick_exe, first_interval = .1)
-    start_timer(initialize_collections, make_partial = True, is_persistent = True)
-    start_timer(reset_reporting_props, make_partial = True, is_persistent = True)
+    start_timer(initialize_collections, make_partial = True)
+    start_timer(reset_reporting_props, make_partial = True)
 
     bpy.app.handlers.load_post.append(initialize_collections)
     bpy.app.handlers.load_post.append(reset_reporting_props)

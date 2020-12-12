@@ -324,7 +324,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             self._terminal_writer.indent += 1
 
             if material_set is not None:
-                self._assign_materials_from_set(context, material_set)
+                material_set.assign_materials_to_targets(context)
 
             rotation_number = 0
             for rotation_angle in rotations:
@@ -447,34 +447,12 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         return
 
     def _assign_actions_from_set(self, context: bpy.types.Context, animation_set: AnimationSetPropertyGroup):
-        props = context.scene.SpritesheetPropertyGroup
+        set_frame_data = animation_set.get_frame_data()
 
-        frame_data = animation_set.get_frame_data()
-        frame_mismatch = False
+        if any(action.get_frame_data() != set_frame_data for action in animation_set.get_selected_actions()):
+            self._terminal_writer.write(f"Warning: not all actions in animation set {animation_set.name} share the frame range ({set_frame_data.frame_min}, {set_frame_data.frame_max})")
 
-        for index, target in enumerate(props.render_targets):
-            if target.mesh_object.animation_data is not None:
-                action = animation_set.actions[index].action
-                target.mesh_object.animation_data.action = action
-
-                frame_mismatch = frame_mismatch or (action.frame_range[0] != frame_data.frame_min) or (action.frame_range[1] != frame_data.frame_max)
-
-        if frame_mismatch:
-            self._terminal_writer.write(f"Warning: not all actions in animation set {animation_set.name} share the frame range ({frame_data.frame_min}, {frame_data.frame_max})")
-
-    def _assign_materials_from_set(self, context: bpy.types.Context, material_set: MaterialSetPropertyGroup):
-        props = context.scene.SpritesheetPropertyGroup
-
-        for index, target in enumerate(props.render_targets):
-            material: bpy.types.Material
-
-            if material_set.mode == "individual":
-                # Indices match between objects and their entries in the material set
-                material = material_set.materials[index].material
-            elif material_set.mode == "shared":
-                material = material_set.shared_material
-
-            target.mesh.materials[0] = material
+        animation_set.assign_actions_to_targets(context)
 
     def _base_output_dir(self) -> str:
         if bpy.data.filepath:

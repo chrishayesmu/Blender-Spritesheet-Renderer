@@ -17,7 +17,7 @@ class SPRITESHEET_UL_AnimationActionPropertyList(bpy.types.UIList):
 
             sub = sub.column()
             sub.alignment = "RIGHT"
-            sub.label(text = f"Frames {item.min_frame}-{item.max_frame}")
+            sub.label(text = f"Frames {item.min_frame}-{item.max_frame}" if item.action else "")
         else:
             layout.active = False
             layout.label(text = f"No Mesh Selected in Slot {index + 1}", icon = "MESH_DATA")

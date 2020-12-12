@@ -89,6 +89,8 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
     # There should be one action per render target; this is handled elsewhere
     actions: bpy.props.CollectionProperty(type = AnimationActionPropertyGroup)
 
+    is_previewing: bpy.props.BoolProperty(default = False)
+
     name: bpy.props.StringProperty(
         name = "Animation Set Name",
         description = "TBD",
@@ -107,6 +109,28 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         name = "", # hide name in tooltip
         get = lambda self: -1
     )
+
+    # TODO: animation targets shouldn't be the same as render targets, not everything animated is a mesh (e.g. armatures)
+
+    def assign_actions_to_targets(self, context: bpy.types.Context):
+        if len(self.get_selected_actions()) == 0:
+            raise ValueError("Actions have not been selected for any render target in this set")
+
+        props = context.scene.SpritesheetPropertyGroup
+
+        # Go through and make sure all the render targets are in a good state before we start changing things
+        for index, target in enumerate(props.render_targets):
+            if target.mesh_object is not None:
+                target.mesh_object.animation_data_create() # just in case
+                target.mesh_object.animation_data.use_tweak_mode = False # can't change actions while in NLA's tweak mode
+
+                if target.mesh_object.animation_data.is_property_readonly("action"):
+                    # There may be other reasons the prop is readonly, but this is the only one I know of so far
+                    raise ValueError(f"Render Target \"{target.mesh.name}\" has animation data that cannot be modified. It may be in tweak mode in Nonlinear Animation.")
+
+        for index, target in enumerate(props.render_targets):
+            if target.mesh_object is not None:
+                target.mesh_object.animation_data.action = self.actions[index].action
 
     def get_frame_data(self) -> Optional[Tuple[int, int, int]]:
         if len(self.actions) == 0:
@@ -213,7 +237,6 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
 
         return self.materials[index].material if self.mode == "individual" else self.shared_material
 
-
 class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
     def _on_target_mesh_updated(self, context):
@@ -305,7 +328,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     animation_sets: bpy.props.CollectionProperty(type = AnimationSetPropertyGroup)
 
     control_animations: bpy.props.BoolProperty(
-        name = "Animate During Render",
+        name = "Control Animations",
         description = "If true, the Render Targets will be animated while rendering, with one sprite being emitted per frame of animation",
         default = False
     )
@@ -314,7 +337,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     material_sets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
 
     control_materials: bpy.props.BoolProperty(
-        name = "Render Multiple Materials",
+        name = "Control Materials",
         description = "If true, the Render Targets will be rendered once for each material set",
         default = False
     )
