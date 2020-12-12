@@ -186,8 +186,6 @@ class SPRITESHEET_PT_AnimationSetPanel():
                              "INFO"
             )
 
-        # TODO add a preview button
-
 class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_camera"
     bl_label = "Control Camera"
