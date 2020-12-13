@@ -107,12 +107,6 @@ def initialize_collections(_unused: None):
         bpy.ops.spritesheet.add_animation_set()
         props.control_animations = control_animations
 
-    for animation_set in props.animation_sets:
-        assert len(animation_set.actions) <= num_render_targets, f"There are more actions in animation set {animation_set} than there are render targets"
-
-        while len(animation_set.actions) < num_render_targets:
-            animation_set.actions.add()
-
     for i in range(0, len(props.animation_sets)):
         ui_panels.SPRITESHEET_PT_AnimationSetPanel.create_sub_panel(i)
 
@@ -168,6 +162,7 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     operators.SPRITESHEET_OT_AssignMaterialSetOperator,
     operators.SPRITESHEET_OT_ConfigureRenderCameraOperator,
     operators.SPRITESHEET_OT_LocateImageMagickOperator,
+    operators.SPRITESHEET_OT_ModifyAnimationSetOperator,
     operators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
     operators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
     operators.SPRITESHEET_OT_OpenDirectoryOperator,

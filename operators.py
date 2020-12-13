@@ -97,7 +97,7 @@ class SPRITESHEET_OT_PlayAnimationSetOperator(bpy.types.Operator):
         animation_set = props.animation_sets[self.index]
 
         try:
-            animation_set.assign_actions_to_targets(context)
+            animation_set.assign_actions_to_targets()
         except Exception as e:
             message: str = e.message if hasattr(e, "message") else str(e.args[0]) if len(e.args) > 0 else "An unknown error occurred."
 
@@ -127,6 +127,8 @@ class SPRITESHEET_OT_PlayAnimationSetOperator(bpy.types.Operator):
 # Operators for modifying property groups
 ########################################################
 
+#region Animation sets
+
 class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
     """Add a new animation set"""
     bl_idname = "spritesheet.add_animation_set"
@@ -140,10 +142,9 @@ class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        animation_set = props.animation_sets.add()
 
-        for _ in range(0, len(props.render_targets)):
-            animation_set.actions.add()
+        animation_set = props.animation_sets.add()
+        animation_set.actions.add()
 
         index = len(props.animation_sets) - 1
         ui_panels.SPRITESHEET_PT_AnimationSetPanel.create_sub_panel(index)
@@ -177,6 +178,69 @@ class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
         props.animation_sets.remove(self.index)
 
         return {'FINISHED'}
+
+class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
+    """Modify new animation set"""
+    bl_idname = "spritesheet.modify_animation_set"
+    bl_label = "Modify Animation Set"
+    bl_options = {'UNDO'}
+
+    action_index: bpy.props.IntProperty(default = -1)
+
+    animation_set_index: bpy.props.IntProperty(default = -1)
+
+    operation: bpy.props.EnumProperty(
+        items = [
+            ("add_action", "", ""),
+            ("move_action_up", "", ""),
+            ("move_action_down", "", ""),
+            ("remove_action", "", "")
+        ]
+    )
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        return props.control_animations
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        assert 0 <= self.animation_set_index < len(props.animation_sets), f"animation_set_index {self.animation_set_index} out of range [0, {len(props.animation_sets)}]"
+
+        animation_set = props.animation_sets[self.animation_set_index]
+
+        if self.operation == "add_action":
+            animation_set.actions.add()
+            return {'FINISHED'}
+
+        assert 0 <= self.action_index < len(animation_set.actions), f"action_index {self.action_index} out of range [0, {len(animation_set.actions)}]"
+
+        if self.operation == "remove_action":
+            animation_set.actions.remove(self.action_index)
+            return {'FINISHED'}
+
+        if self.operation == "move_action_up":
+            if self.action_index == 0:
+                return {'CANCELLED'}
+
+            animation_set.actions.move(self.action_index, self.action_index - 1)
+            animation_set.selected_action_index = self.action_index - 1
+            return {'FINISHED'}
+
+        if self.operation == "move_action_down":
+            if self.action_index == len(animation_set.actions) - 1:
+                return {'CANCELLED'}
+
+            animation_set.actions.move(self.action_index, self.action_index + 1)
+            animation_set.selected_action_index = self.action_index + 1
+            return {'FINISHED'}
+
+        raise ValueError(f"Invalid operation: {self.operation}")
+
+#endregion
+
+#region Materials set
 
 class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     """Add a new material set"""
@@ -225,6 +289,10 @@ class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
         props.material_sets.remove(self.index)
 
         return {'FINISHED'}
+
+#endregion
+
+#region Render targets
 
 class SPRITESHEET_OT_MoveRenderTargetUpOperator(bpy.types.Operator):
     """Moves the selected Render Target up in the list (i.e. from index to index - 1)."""
@@ -288,10 +356,7 @@ class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
         props = context.scene.SpritesheetPropertyGroup
         props.render_targets.add()
 
-        # Iterate animation/material sets and add items to keep them in sync
-        for animation_set in props.animation_sets:
-            animation_set.actions.add()
-
+        # Iterate material sets and add items to keep them in sync
         for material_set in props.material_sets:
             material_set.materials.add()
 
@@ -316,10 +381,9 @@ class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
 
         props.render_targets.remove(props.selected_render_target_index)
 
-        for animation_set in props.animation_sets:
-            animation_set.actions.remove(props.selected_render_target_index)
-
         for material_set in props.material_sets:
             material_set.materials.remove(props.selected_render_target_index)
 
         return {'FINISHED'}
+
+#endregion

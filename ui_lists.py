@@ -4,23 +4,19 @@ class SPRITESHEET_UL_AnimationActionPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 
-        props = context.scene.SpritesheetPropertyGroup
+        # Three column layout: mesh name, action and # of frames in action,
+        # with the action selection being the largest item
+        col_size = .4
+        split = layout.split(factor = col_size)
+        split.prop_search(item, "target", bpy.data, "objects", text = "")
 
-        if props.render_targets[index].mesh:
-            # Three column layout: mesh name, action and # of frames in action,
-            # with the action selection being the largest item
-            split = layout.split(factor = .3)
-            split.label(text = props.render_targets[index].mesh.name, icon = "MESH_DATA")
+        # Split second half so its left column is the same as the first column
+        sub = split.split(factor = col_size / (1 - col_size))
+        sub.prop_search(item, "action", bpy.data, "actions", text = "")
 
-            sub = split.split(factor = .7)
-            sub.prop_search(item, "action", bpy.data, "actions", text = "")
-
-            sub = sub.column()
-            sub.alignment = "RIGHT"
-            sub.label(text = f"Frames {item.min_frame}-{item.max_frame}" if item.action else "")
-        else:
-            layout.active = False
-            layout.label(text = f"No Mesh Selected in Slot {index + 1}", icon = "MESH_DATA")
+        sub = sub.column()
+        sub.alignment = "RIGHT"
+        sub.label(text = f"Frames {item.min_frame}-{item.max_frame}" if item.action else "")
 
 class SPRITESHEET_UL_RenderTargetMaterialPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):

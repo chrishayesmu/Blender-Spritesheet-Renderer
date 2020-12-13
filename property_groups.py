@@ -50,6 +50,12 @@ class AnimationActionPropertyGroup(bpy.types.PropertyGroup):
         type = bpy.types.Action
     )
 
+    target: bpy.props.PointerProperty(
+        name = "Animation Target",
+        description = "Which object this action will be applied to",
+        type = bpy.types.Object
+    )
+
     max_frame: bpy.props.IntProperty(
         get = lambda self: -1 if not self.action else math.ceil(self.action.frame_range[1])
     )
@@ -107,30 +113,26 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
 
     selected_action_index: bpy.props.IntProperty(
         name = "", # hide name in tooltip
-        get = lambda self: -1
+        #get = lambda self: -1
     )
 
-    # TODO: animation targets shouldn't be the same as render targets, not everything animated is a mesh (e.g. armatures)
+    def assign_actions_to_targets(self):
+        is_valid, err = self.is_valid()
 
-    def assign_actions_to_targets(self, context: bpy.types.Context):
-        if len(self.get_selected_actions()) == 0:
-            raise ValueError("Actions have not been selected for any render target in this set")
-
-        props = context.scene.SpritesheetPropertyGroup
+        if not is_valid:
+            raise ValueError(f"Can't assign actions because animation set is invalid: {err}")
 
         # Go through and make sure all the render targets are in a good state before we start changing things
-        for index, target in enumerate(props.render_targets):
-            if target.mesh_object is not None:
-                target.mesh_object.animation_data_create() # just in case
-                target.mesh_object.animation_data.use_tweak_mode = False # can't change actions while in NLA's tweak mode
+        for prop in self.actions:
+            prop.target.animation_data_create() # just in case
+            prop.target.animation_data.use_tweak_mode = False # can't change actions while in NLA's tweak mode
 
-                if target.mesh_object.animation_data.is_property_readonly("action"):
-                    # There may be other reasons the prop is readonly, but this is the only one I know of so far
-                    raise ValueError(f"Render Target \"{target.mesh.name}\" has animation data that cannot be modified. It may be in tweak mode in Nonlinear Animation.")
+            if prop.target.animation_data.is_property_readonly("action"):
+                # There may be other reasons the prop is readonly, but this is the only one I know of so far
+                raise ValueError(f"Animation target \"{prop.target.name}\" has animation data that cannot be modified. It may be in tweak mode in Nonlinear Animation.")
 
-        for index, target in enumerate(props.render_targets):
-            if target.mesh_object is not None:
-                target.mesh_object.animation_data.action = self.actions[index].action
+        for prop in self.actions:
+            prop.target.animation_data.action = prop.action
 
     def get_frame_data(self) -> Optional[Tuple[int, int, int]]:
         if len(self.actions) == 0:
@@ -149,6 +151,16 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
 
     def get_selected_actions(self) -> List[AnimationActionPropertyGroup]:
         return list([a for a in self.actions if a.action is not None])
+
+    def is_valid(self) -> Tuple[bool, Optional[str]]:
+        for index, prop in enumerate(self.actions):
+            if not prop.target:
+                return (False, f"Target in row {index + 1} is not set.")
+
+            if not prop.action:
+                return (False, f"Action in row {index + 1} is not set.")
+
+        return (True, None)
 
 class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
     # You can only make CollectionProperties out of PropertyGroups, so this class just wraps bpy.types.Material

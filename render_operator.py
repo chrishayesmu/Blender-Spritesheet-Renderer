@@ -60,25 +60,17 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         if not props.control_animations:
             return (True, None)
 
-        if all(not target.mesh_object.animation_data for target in props.render_targets):
-            return (False, "'Control Animations' is enabled, but none of the Render Targets have animation data.")
-
         for index, animation_set in enumerate(props.animation_sets):
-            if len(animation_set.get_selected_actions()) == 0:
-                return (False, f"Animation Set {index + 1} - \"{animation_set.name}\" has no actions selected. Either populate one or more actions, or delete this set.")
-
-            for action_index, action_prop in enumerate(animation_set.actions):
-                render_target = props.render_targets[action_index]
-
-                if action_prop.action and not render_target.mesh_object.animation_data:
-                    return (False, f"In Animation Set {index + 1} - \"{animation_set.name}\", \"{render_target.mesh.name}\" has action \"{action_prop.action.name}\" assigned, but has no animation data, so it cannot be animated.")
+            is_valid, err = animation_set.is_valid()
+            if not is_valid:
+                return (False, f"Animation Set {index + 1} - \"{animation_set.name}\" is invalid: {err}")
 
         # Check every animation set has a unique name, since we use the set name in the temporary output filenames and the output JSON
         names = set(animation_set.name for animation_set in props.animation_sets)
 
         if len(names) != len(props.animation_sets):
             num_repeats = len(props.animation_sets) - len(names)
-            suffix = f"{num_repeats} set does not." if num_repeats == 1 else f"{num_repeats} sets do not."
+            suffix = "1 set needs to be renamed." if num_repeats == 1 else f"{num_repeats} sets need to be renamed."
             return (False, "Every animation set must have a unique name. " + suffix)
 
         return (True, None)
@@ -329,7 +321,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             rotation_number = 0
             for rotation_angle in rotations:
                 rotation_number += 1
-                action_number = 0
+                animation_set_number = 0
 
                 self._terminal_writer.write("Rendering angle {} of {}: {} degrees\n".format(rotation_number, len(rotations), rotation_angle))
                 self._terminal_writer.indent += 1
@@ -343,10 +335,10 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 temp_dir_path = temp_dir.name
 
                 for animation_set in animation_sets:
-                    action_number += 1
+                    animation_set_number += 1
 
                     if animation_set is not None:
-                        self._terminal_writer.write("Processing animation set {} of {}: \"{}\"\n".format(action_number, len(animation_sets), animation_set.name))
+                        self._terminal_writer.write(f"Processing animation set {animation_set_number} of {len(animation_sets)}: \"{animation_set.name}\"\n")
                         self._terminal_writer.indent += 1
 
                         # Yield after each frame of the animation to update the UI
@@ -360,7 +352,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                         # Combine sprites now if files are being split by animation, so we can wipe out all the per-frame
                         # files before processing the next animation
                         if separate_files_per_animation:
-                            self._terminal_writer.write("\nCombining image files for animation set {} of {}\n".format(action_number, len(animation_sets)))
+                            self._terminal_writer.write(f"\nCombining image files for animation set {animation_set_number} of {len(animation_sets)}\n")
                             image_magick_result = self._run_image_magick(props, reporting_props, material_set_index, animation_set, frames_since_last_output, temp_dir_path, rotation_angle)
 
                             if not image_magick_result["succeeded"]: # error running ImageMagick
@@ -384,7 +376,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                     # End of for(actions)
 
                 if separate_files_per_rotation and not separate_files_per_animation:
-                    self._terminal_writer.write("\nCombining image files for angle {} of {}\n".format(rotation_number, len(rotations)))
+                    self._terminal_writer.write(f"\nCombining image files for angle {rotation_number} of {len(rotations)}\n")
                     self._terminal_writer.indent += 1
 
                     # Output one file for the whole rotation, with all animations in it
@@ -406,7 +398,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 # End of for(rotations)
 
             if not separate_files_per_rotation and not separate_files_per_animation:
-                self._terminal_writer.write("\nCombining image files for material set {} of {}\n".format(material_number, len(material_sets)))
+                self._terminal_writer.write(f"\nCombining image files for material set {material_number} of {len(material_sets)}\n")
                 self._terminal_writer.indent += 1
 
                 # Output one file for the entire material
@@ -446,13 +438,13 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         return
 
-    def _assign_actions_from_set(self, context: bpy.types.Context, animation_set: AnimationSetPropertyGroup):
+    def _assign_actions_from_set(self, animation_set: AnimationSetPropertyGroup):
         set_frame_data = animation_set.get_frame_data()
 
         if any(action.get_frame_data() != set_frame_data for action in animation_set.get_selected_actions()):
             self._terminal_writer.write(f"Warning: not all actions in animation set {animation_set.name} share the frame range ({set_frame_data.frame_min}, {set_frame_data.frame_max})")
 
-        animation_set.assign_actions_to_targets(context)
+        animation_set.assign_actions_to_targets()
 
     def _base_output_dir(self) -> str:
         if bpy.data.filepath:
@@ -711,7 +703,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         props = scene.SpritesheetPropertyGroup
         reporting_props = scene.ReportingPropertyGroup
 
-        self._assign_actions_from_set(context, animation_set)
+        self._assign_actions_from_set(animation_set)
         frame_data = animation_set.get_frame_data()
         num_digits_in_frame_max: int = int(math.log10(frame_data.frame_max)) + 1
 

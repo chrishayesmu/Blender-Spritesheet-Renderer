@@ -1,6 +1,7 @@
 import bpy
+from copy import deepcopy
 import math
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Tuple, Union
 
 import preferences
 
@@ -62,18 +63,18 @@ class BaseAddonPanel:
             col = row.column(align = True)
 
             if add_op:
-                col.operator(add_op, text = "", icon = "ADD")
+                self._emit_operator(col, add_op, "ADD")
 
             if remove_op:
-                col.operator(remove_op, text = "", icon = "REMOVE")
+                self._emit_operator(col, remove_op, "REMOVE")
 
             col.separator()
 
             if reorder_up_op:
-                col.operator(reorder_up_op, text = "", icon = "TRIA_UP")
+                self._emit_operator(col, reorder_up_op, "TRIA_UP")
 
             if reorder_down_op:
-                col.operator(reorder_down_op, text = "", icon = "TRIA_DOWN")
+                self._emit_operator(col, reorder_down_op, "TRIA_DOWN")
 
     def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = ""):
         lines = UIUtil.wrap_text_in_region(context, text)
@@ -85,6 +86,18 @@ class BaseAddonPanel:
         col.scale_y = .7 # bring text lines a little closer together
         for line in lines:
             col.label(text = line)
+
+    def _emit_operator(self, layout: bpy.types.UILayout, op: Optional[Union[str, Tuple[str, Dict[str,  Any]]]], icon: str):
+        if isinstance(op, str):
+            layout.operator(op, text = "", icon = icon)
+        else:
+            op_name = op[0]
+            op_args = op[1]
+
+            op_instance = layout.operator(op_name, text = "", icon = icon)
+
+            for key, value in op_args.items():
+                setattr(op_instance, key, value)
 
 class SPRITESHEET_PT_AddonPanel(bpy.types.Panel):
     """Parent panel that holds all other addon panels when the UI is in the Render Properties area"""
@@ -154,6 +167,23 @@ class SPRITESHEET_PT_AnimationSetPanel():
         props = context.scene.SpritesheetPropertyGroup
         animation_set = props.animation_sets[self.index]
 
+        add_op = ("spritesheet.modify_animation_set", {
+            "animation_set_index": self.index,
+            "operation": "add_action"
+        })
+
+        remove_op = ("spritesheet.modify_animation_set", {
+            "action_index": animation_set.selected_action_index,
+            "animation_set_index": self.index,
+            "operation": "remove_action"
+        })
+
+        move_up_op = deepcopy(remove_op)
+        move_up_op[1]["operation"] = "move_action_up"
+
+        move_down_op = deepcopy(remove_op)
+        move_down_op[1]["operation"] = "move_action_down"
+
         self.layout.enabled = props.control_animations
 
         row = self.layout.row(align = True)
@@ -174,6 +204,10 @@ class SPRITESHEET_PT_AnimationSetPanel():
                            "actions", # List items property name
                            animation_set, # List index property source
                            "selected_action_index", # List index property name
+                           add_op = add_op,
+                           remove_op = remove_op,
+                           reorder_up_op = move_up_op,
+                           reorder_down_op = move_down_op
         )
 
         # Show a warning if there are actions with different frame ranges

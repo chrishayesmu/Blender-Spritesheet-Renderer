@@ -65,10 +65,11 @@ class SceneSnapshot:
 
         self._actions: Dict[bpy.types.Object, bpy.types.Action] = {}
 
-        objects = [o.mesh_object for o in props.render_targets if o.mesh_object.animation_data is not None]
+        for animation_set in props.animation_sets:
+            objects = [a.target for a in animation_set.actions]
 
-        for obj in objects:
-            self._actions[obj] = obj.animation_data.action
+            for obj in objects:
+                self._actions[obj] = obj.animation_data.action
 
     def _snapshot_camera(self, context: bpy.types.Context):
         props = context.scene.SpritesheetPropertyGroup
