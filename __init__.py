@@ -97,8 +97,6 @@ def initialize_collections(_unused: None):
     if len(props.render_targets) == 0:
         bpy.ops.spritesheet.add_render_target()
 
-    num_render_targets = len(props.render_targets)
-
     ### Initialize animation sets
     if len(props.animation_sets) == 0:
         # spritesheet.add_animation_set's poll method requires control_animations to be true, so temporarily set it

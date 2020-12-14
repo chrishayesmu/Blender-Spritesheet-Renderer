@@ -3,6 +3,7 @@ import collections
 import math
 from typing import List, Optional, Tuple
 
+from util import StringUtil
 import utils
 
 frame_data = collections.namedtuple('frame_data', 'frame_min frame_max num_frames')
@@ -164,31 +165,36 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
 
 class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
     # All of these types have a materials property
-    _valid_target_types = { "CURVE", "GPENCIL", "MESH", "META" }
+    # Keep in sync with description of "target" property
+    _valid_target_types = { "CURVE", "GPENCIL", "MESH", "META", "VOLUME" }
 
     def _is_obj_valid_target(self, obj):
         return obj.type in RenderTargetMaterialPropertyGroup._valid_target_types
 
+    def _is_mat_valid_for_target(self, mat):
+        # Non-grease-pencil materials are valid for everything
+        if not mat.is_grease_pencil:
+            return True
+
+        # Grease pencil materials can only be used with grease pencil objects
+        if self.target is not None and self.target.type == "GPENCIL":
+            return True
+
+        return False
+
     material: bpy.props.PointerProperty(
         name = "Material",
-        type = bpy.types.Material
+        description = "The material which will be applied to the Target Object while this material set is active. Cannot be empty. Some materials are only valid for certain object types, and this list is filtered accordingly",
+        type = bpy.types.Material,
+        poll = _is_mat_valid_for_target
     )
 
     target: bpy.props.PointerProperty(
-        name = "Target",
-        type = bpy.types.ID,
+        name = "Target Object",
+        description = "The object to which this material will be applied. Can be a Mesh, Curve, Volume, Metaball, or Grease Pencil",
+        type = bpy.types.Object,
         poll = _is_obj_valid_target
     )
-
-    def set_material_from_mesh(self, context: bpy.types.Context, mesh_index: int):
-        props = context.scene.SpritesheetPropertyGroup
-
-        target = props.render_targets[mesh_index]
-
-        if not target.mesh or len(target.mesh.materials) == 0:
-            return
-
-        self.material = target.mesh.materials[0]
 
 class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
 
@@ -199,6 +205,16 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
 
     def _set_name(self, value: str):
         self["name"] = value
+
+    def _is_mat_valid_to_share(self, mat):
+        # Non-grease-pencil materials are valid for everything
+        if not mat.is_grease_pencil:
+            return True
+
+        if all(item.target is not None and item.target.type == "GPENCIL" for item in self.materials):
+            return True
+
+        return False
 
     mode: bpy.props.EnumProperty(
         name = "Mode",
@@ -231,26 +247,56 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
-    selected_material_index: bpy.props.IntProperty()
+    selected_material_index: bpy.props.IntProperty(name = "")
 
     shared_material: bpy.props.PointerProperty(
-        name = "Material",
-        description = "The material to use for all Render Targets while rendering this material set",
-        type = bpy.types.Material
+        name = "Shared Material",
+        description = "The material to use for all targets while rendering this material set. Grease pencil materials will only be available if all targets are grease pencils",
+        type = bpy.types.Material,
+        poll = _is_mat_valid_to_share
     )
 
-    def assign_materials_to_targets(self, context: bpy.types.Context):
-        props = context.scene.SpritesheetPropertyGroup
+    def assign_materials_to_targets(self):
+        if not self.is_valid():
+            raise ValueError("Material set is not in a valid state to assign materials")
 
-        for index, target in enumerate(props.render_targets):
-            target.mesh.materials[0] = self.material_at(index)
+        for index, prop in enumerate(self.materials):
 
-    def is_valid(self) -> bool:
-        if self.mode == "shared":
-            return self.shared_material is not None
+            if len(prop.target.material_slots) == 0:
+                prop.target.material_slots.new(None)
 
-        # In individual mode we just care that every mesh has a material assigned
-        return not any(item.material is None for item in self.materials)
+            prop.target.material_slots[0].material = self.material_at(index)
+
+    def is_valid(self) -> Tuple[bool, Optional[str]]:
+        if len(self.materials) == 0:
+            return (False, "There are no materials in the material set.")
+
+        any_target_unassigned = any(item.target is None for item in self.materials)
+
+        if any_target_unassigned:
+            return (False, "One or more target objects are unassigned.")
+
+        targets_too_many_mat_slots = [item.target.name for item in self.materials if len(item.target.material_slots) > 1]
+
+        if len(targets_too_many_mat_slots) > 0:
+            return (False, f"Each target object can only have one material slot. These objects have multiple: {StringUtil.join_with_commas(targets_too_many_mat_slots)}")
+
+        if self.mode == "shared" and self.shared_material is None:
+            return (False, "Shared material has not been assigned.")
+
+        if self.mode == "individual":
+            any_material_unassigned = any(item.material is None for item in self.materials)
+
+            if any_material_unassigned:
+                return (False, "One or more materials are unassigned.")
+
+        # Check for the same target referenced multiple times
+        unique_targets = { item.target for item in self.materials }
+
+        if len(unique_targets) != len(self.materials):
+            return (False, "One or more targets is repeated in the material set. Remove any duplicates.")
+
+        return (True, None)
 
     def material_at(self, index: int) -> Optional[bpy.types.Material]:
         assert 0 <= index < len(self.materials)
@@ -259,25 +305,11 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
 
 class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
-    def _on_target_mesh_updated(self, context):
+    def _on_target_mesh_updated(self, _context):
         #pylint: disable=invalid-name
 
         # Sync up the mesh_object property for convenience
         self.mesh_object = None if self.mesh is None else utils.find_object_data_for_mesh(self.mesh)
-
-        # When selecting an object for the first time, auto-detect its associated material and assign it
-        # in all of the material sets, for convenience; also set its rotation root to itself
-        if self.previous_mesh is None and self.mesh is not None and hasattr(self.mesh, "materials") and len(self.mesh.materials) > 0:
-            props = context.scene.SpritesheetPropertyGroup
-
-            self.rotation_root = self.mesh_object
-
-            # Figure out which index this object is, because it's the same in the material sets
-            index = list(props.render_targets).index(self)
-
-            for material_set in props.material_sets:
-                material_set.materials[index].set_material_from_mesh(context, index)
-
         self.previous_mesh = self.mesh
 
     mesh: bpy.props.PointerProperty(
@@ -407,7 +439,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     ### Target objects
-    # TODO: add targets in camera, materials, and rotations and get rid of render targets completely
+    # TODO: add targets in camera and rotations and get rid of render targets completely
     render_targets: bpy.props.CollectionProperty(
         name = "Render Targets",
         type = RenderTargetPropertyGroup

@@ -50,14 +50,14 @@ class BaseAddonPanel:
 
         return box
 
-    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, min_rows: int = 1,
+    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, item_dyntip_propname: str = "", min_rows: int = 1,
                       add_op: Optional[str] = None, remove_op: Optional[str] = None, reorder_up_op: Optional[str] = None, reorder_down_op: Optional[str] = None):
         list_obj = getattr(dataptr, propname)
 
         row = layout.row()
 
         # Mostly passthrough but with a couple of standardized params
-        row.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, rows = min(5, max(min_rows, len(list_obj))), maxrows = 5)
+        row.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, item_dyntip_propname = item_dyntip_propname, rows = min(5, max(min_rows, len(list_obj))), maxrows = 5)
 
         if add_op or remove_op or reorder_up_op or reorder_down_op:
             col = row.column(align = True)
@@ -363,43 +363,60 @@ class SPRITESHEET_PT_MaterialSetPanel():
 
         if material_set.mode == "shared":
             self.layout.prop(material_set, "shared_material")
-        elif material_set.mode == "individual":
-            add_op = ("spritesheet.modify_material_set", {
-                "material_set_index": self.index,
-                "operation": "add_target"
-            })
 
-            remove_op = ("spritesheet.modify_material_set", {
-                "target_index": material_set.selected_material_index,
-                "material_set_index": self.index,
-                "operation": "remove_target"
-            })
+        add_op = ("spritesheet.modify_material_set", {
+            "material_set_index": self.index,
+            "operation": "add_target"
+        })
 
-            move_up_op = deepcopy(remove_op)
-            move_up_op[1]["operation"] = "move_target_up"
+        remove_op = ("spritesheet.modify_material_set", {
+            "target_index": material_set.selected_material_index,
+            "material_set_index": self.index,
+            "operation": "remove_target"
+        })
 
-            move_down_op = deepcopy(remove_op)
-            move_down_op[1]["operation"] = "move_target_down"
+        move_up_op = deepcopy(remove_op)
+        move_up_op[1]["operation"] = "move_target_up"
 
-            self.layout.separator()
+        move_down_op = deepcopy(remove_op)
+        move_down_op[1]["operation"] = "move_target_down"
 
-            row = self.layout.row()
-            row.scale_y = 0.5
-            row.label(text = " Target")
-            row.label(text = "Material")
+        self.layout.separator()
+        self.layout.separator()
 
-            self.template_list(self.layout,
-                               "SPRITESHEET_UL_RenderTargetMaterialPropertyList", # Class name
-                               "", # List ID (blank to generate)
-                               material_set, # List items property source
-                               "materials", # List items property name
-                               material_set, # List index property source
-                               "selected_material_index", # List index property name
-                               add_op = add_op,
-                               remove_op = remove_op,
-                               reorder_up_op = move_up_op,
-                               reorder_down_op = move_down_op
-            )
+        # Header row for list; for some reason centering the two columns makes them line up very well
+        row = self.layout.row()
+        row.scale_y = 0.1
+
+        col = row.column()
+        col.alignment = "CENTER"
+        col.label(text = "Target")
+
+        col = row.column()
+        col.alignment = "CENTER"
+        col.label(text = "Material")
+
+        self.template_list(self.layout,
+                            "SPRITESHEET_UL_RenderTargetMaterialPropertyList", # Class name
+                            "", # List ID (blank to generate)
+                            material_set, # List items property source
+                            "materials", # List items property name
+                            material_set, # List index property source
+                            "selected_material_index", # List index property name
+                            min_rows = 4,
+                            add_op = add_op,
+                            remove_op = remove_op,
+                            reorder_up_op = move_up_op,
+                            reorder_down_op = move_down_op
+        )
+
+        prop = material_set.materials[material_set.selected_material_index]
+
+        self.layout.separator()
+        self.layout.prop_search(prop, "target", bpy.data, "objects", text = "Target Object", icon = "OBJECT_DATA")
+
+        if material_set.mode == "individual":
+            self.layout.prop_search(prop, "material", bpy.data, "materials", text = "Material", icon = "MATERIAL")
 
 class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_outputproperties"

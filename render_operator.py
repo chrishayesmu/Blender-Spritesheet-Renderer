@@ -47,6 +47,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 if not is_valid:
                     return False
 
+            # TODO might need to check that we're in object mode
+
             cls.renderDisabledReason = ""
             return True
         except:
@@ -107,34 +109,23 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         if len(props.material_sets) == 0:
             return (False, "'Control Materials' is enabled, but no material sets have been created.")
 
+        # Validate sets individually first
+        for set_index, material_set in enumerate(props.material_sets):
+            is_valid, err = material_set.is_valid()
+
+            if not is_valid:
+                return (False, f"Material Set {set_index + 1} - \"{material_set.name}\" is invalid: {err}")
+
         # Check that each material set role is only used once, except for Other
         material_sets_by_role: Dict[str, List[Dict[str, Any]]] = collections.defaultdict(list)
         for set_index, material_set in enumerate(props.material_sets):
             material_sets_by_role[material_set.role].append({ "index": set_index, "set": material_set })
-
-            # While we're already iterating the sets, make sure all the materials are assigned
-            if material_set.mode == "individual":
-                for object_mat_pair in material_set.materials:
-                    if object_mat_pair.material is None:
-                        return (False, f"One or more materials has not been assigned in Material Set {set_index + 1} - \"{material_set.name}\".")
-            elif material_set.mode == "shared" and material_set.shared_material is None:
-                return (False, f"The shared material has not been assigned in Material Set {set_index + 1} - \"{material_set.name}\".")
 
         for role, sets in material_sets_by_role.items():
             if len(sets) > 1 and role != "other":
                 role_name = utils.enum_display_name_from_identifier(sets[0]["set"], "role", role)
                 set_indices = StringUtil.join_with_commas([str(set_tuple["index"] + 1) for set_tuple in sets])
                 return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role_name}'. This role can only be used once.")
-
-        # Check each render target's material slots
-        for index, target in enumerate(props.render_targets):
-            num_material_slots = len(target.mesh.materials)
-            if num_material_slots > 1:
-                return (False, f"If 'Control Materials' is enabled, each Render Target must have exactly 1 material slot. Mesh #{index + 1} (\"{target.mesh.name}\") has {num_material_slots}. "
-                              + "(You may need to select child meshes instead, or split your mesh by material.)")
-
-            if num_material_slots == 0:
-                return (False, f"If 'Control Materials' is enabled, each Render Target must have exactly 1 material slot. Mesh #{index + 1} (\"{target.mesh.name}\") has none.")
 
         return (True, None)
 
@@ -316,7 +307,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             self._terminal_writer.indent += 1
 
             if material_set is not None:
-                material_set.assign_materials_to_targets(context)
+                material_set.assign_materials_to_targets()
 
             rotation_number = 0
             for rotation_angle in rotations:

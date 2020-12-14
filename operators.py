@@ -1,5 +1,4 @@
 import bpy
-from typing import Optional
 
 import preferences
 import ui_panels
@@ -67,11 +66,12 @@ class SPRITESHEET_OT_AssignMaterialSetOperator(bpy.types.Operator):
         assert 0 <= self.index < len(props.material_sets)
 
         material_set = props.material_sets[self.index]
-        if not material_set.is_valid():
-            self.report({'ERROR'}, "All materials in this set need to be assigned first.")
+        is_valid, err = material_set.is_valid()
+        if not is_valid:
+            self.report({'ERROR'}, err)
             return {'CANCELLED'}
 
-        material_set.assign_materials_to_targets(context)
+        material_set.assign_materials_to_targets()
 
         for area in context.window.screen.areas:
             if area.type == "VIEW_3D":
@@ -268,11 +268,10 @@ class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        material_set = props.material_sets.add()
 
-        # Each material set should have a number of items equal to the number of render targets
-        for _ in range (0, len(props.render_targets)):
-            material_set.materials.add()
+        # Create new material set and give it a single entry to start
+        material_set = props.material_sets.add()
+        material_set.materials.add()
 
         # Register a new UI panel to display this material set
         index = len(props.material_sets) - 1
@@ -355,7 +354,7 @@ class SPRITESHEET_OT_ModifyMaterialSetOperator(bpy.types.Operator):
             if self.target_index == 0:
                 return {'CANCELLED'}
 
-            material_set.actions.move(self.target_index, self.target_index - 1)
+            material_set.materials.move(self.target_index, self.target_index - 1)
 
             if self.target_index == material_set.selected_material_index:
                 material_set.selected_material_index = self.target_index - 1
@@ -363,10 +362,10 @@ class SPRITESHEET_OT_ModifyMaterialSetOperator(bpy.types.Operator):
             return {'FINISHED'}
 
         if self.operation == "move_target_down":
-            if self.target_index == len(material_set.actions) - 1:
+            if self.target_index == len(material_set.materials) - 1:
                 return {'CANCELLED'}
 
-            material_set.actions.move(self.target_index, self.target_index + 1)
+            material_set.materials.move(self.target_index, self.target_index + 1)
 
             if self.target_index == material_set.selected_material_index:
                 material_set.selected_material_index = self.target_index + 1
@@ -441,10 +440,6 @@ class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
         props = context.scene.SpritesheetPropertyGroup
         props.render_targets.add()
 
-        # Iterate material sets and add items to keep them in sync
-        for material_set in props.material_sets:
-            material_set.materials.add()
-
         return {'FINISHED'}
 
 class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
@@ -465,9 +460,6 @@ class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
             return {'CANCELLED'}
 
         props.render_targets.remove(props.selected_render_target_index)
-
-        for material_set in props.material_sets:
-            material_set.materials.remove(props.selected_render_target_index)
 
         return {'FINISHED'}
 
