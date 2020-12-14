@@ -364,6 +364,30 @@ class SPRITESHEET_PT_MaterialSetPanel():
         if material_set.mode == "shared":
             self.layout.prop(material_set, "shared_material")
         elif material_set.mode == "individual":
+            add_op = ("spritesheet.modify_material_set", {
+                "material_set_index": self.index,
+                "operation": "add_target"
+            })
+
+            remove_op = ("spritesheet.modify_material_set", {
+                "target_index": material_set.selected_material_index,
+                "material_set_index": self.index,
+                "operation": "remove_target"
+            })
+
+            move_up_op = deepcopy(remove_op)
+            move_up_op[1]["operation"] = "move_target_up"
+
+            move_down_op = deepcopy(remove_op)
+            move_down_op[1]["operation"] = "move_target_down"
+
+            self.layout.separator()
+
+            row = self.layout.row()
+            row.scale_y = 0.5
+            row.label(text = " Target")
+            row.label(text = "Material")
+
             self.template_list(self.layout,
                                "SPRITESHEET_UL_RenderTargetMaterialPropertyList", # Class name
                                "", # List ID (blank to generate)
@@ -371,6 +395,10 @@ class SPRITESHEET_PT_MaterialSetPanel():
                                "materials", # List items property name
                                material_set, # List index property source
                                "selected_material_index", # List index property name
+                               add_op = add_op,
+                               remove_op = remove_op,
+                               reorder_up_op = move_up_op,
+                               reorder_down_op = move_down_op
             )
 
 class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):

@@ -1,4 +1,5 @@
 import bpy
+from typing import Optional
 
 import preferences
 import ui_panels
@@ -180,7 +181,6 @@ class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
-    """Modify new animation set"""
     bl_idname = "spritesheet.modify_animation_set"
     bl_label = "Modify Animation Set"
     bl_options = {'UNDO'}
@@ -214,9 +214,16 @@ class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
             animation_set.actions.add()
             return {'FINISHED'}
 
+        # All ops past this use action_index
         assert 0 <= self.action_index < len(animation_set.actions), f"action_index {self.action_index} out of range [0, {len(animation_set.actions)}]"
 
         if self.operation == "remove_action":
+            if len(animation_set.actions) == 1:
+                return {'CANCELLED'}
+
+            if self.action_index == animation_set.selected_action_index:
+                animation_set.selected_action_index = self.action_index - 1
+
             animation_set.actions.remove(self.action_index)
             return {'FINISHED'}
 
@@ -225,7 +232,10 @@ class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
                 return {'CANCELLED'}
 
             animation_set.actions.move(self.action_index, self.action_index - 1)
-            animation_set.selected_action_index = self.action_index - 1
+
+            if self.action_index == animation_set.selected_action_index:
+                animation_set.selected_action_index = self.action_index - 1
+
             return {'FINISHED'}
 
         if self.operation == "move_action_down":
@@ -233,7 +243,10 @@ class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
                 return {'CANCELLED'}
 
             animation_set.actions.move(self.action_index, self.action_index + 1)
-            animation_set.selected_action_index = self.action_index + 1
+
+            if self.action_index == animation_set.selected_action_index:
+                animation_set.selected_action_index = self.action_index + 1
+
             return {'FINISHED'}
 
         raise ValueError(f"Invalid operation: {self.operation}")
@@ -289,6 +302,78 @@ class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
         props.material_sets.remove(self.index)
 
         return {'FINISHED'}
+
+class SPRITESHEET_OT_ModifyMaterialSetOperator(bpy.types.Operator):
+    bl_idname = "spritesheet.modify_material_set"
+    bl_label = "Modify Material Set"
+    bl_options = {'UNDO'}
+
+    material_set_index: bpy.props.IntProperty(default = -1)
+
+    target_index: bpy.props.IntProperty(default = -1)
+
+    operation: bpy.props.EnumProperty(
+        items = [
+            ("add_target", "", ""),
+            ("move_target_up", "", ""),
+            ("move_target_down", "", ""),
+            ("remove_target", "", "")
+        ]
+    )
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        return props.control_materials
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        assert 0 <= self.material_set_index < len(props.material_sets), f"material_set_index {self.material_set_index} out of range [0, {len(props.material_sets)}]"
+
+        material_set = props.material_sets[self.material_set_index]
+
+        if self.operation == "add_target":
+            material_set.materials.add()
+            return {'FINISHED'}
+
+        # All ops past this use target_index
+        assert 0 <= self.target_index < len(material_set.materials), f"target_index {self.target_index} out of range [0, {len(material_set.materials)}]"
+
+        if self.operation == "remove_target":
+            if len(material_set.materials) == 1:
+                return {'CANCELLED'}
+
+            material_set.materials.remove(self.target_index)
+
+            if self.target_index == material_set.selected_material_index:
+                material_set.selected_material_index = self.target_index - 1
+
+            return {'FINISHED'}
+
+        if self.operation == "move_target_up":
+            if self.target_index == 0:
+                return {'CANCELLED'}
+
+            material_set.actions.move(self.target_index, self.target_index - 1)
+
+            if self.target_index == material_set.selected_material_index:
+                material_set.selected_material_index = self.target_index - 1
+
+            return {'FINISHED'}
+
+        if self.operation == "move_target_down":
+            if self.target_index == len(material_set.actions) - 1:
+                return {'CANCELLED'}
+
+            material_set.actions.move(self.target_index, self.target_index + 1)
+
+            if self.target_index == material_set.selected_material_index:
+                material_set.selected_material_index = self.target_index + 1
+
+            return {'FINISHED'}
+
+        raise ValueError(f"Invalid operation: {self.operation}")
 
 #endregion
 

@@ -119,14 +119,6 @@ def initialize_collections(_unused: None):
         bpy.ops.spritesheet.add_material_set()
         props.control_materials = control_materials
 
-    # Each material set should have the same number of items as there are render targets
-    for material_set in props.material_sets:
-        assert len(material_set.materials) <= num_render_targets, f"There are more materials in material set {material_set} than there are render targets"
-
-        while len(material_set.materials) < num_render_targets:
-            pair = material_set.materials.add()
-            pair.set_material_from_mesh(bpy.context, len(material_set.materials) - 1)
-
     for i in range(0, len(props.material_sets)):
         ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
 
@@ -163,6 +155,7 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     operators.SPRITESHEET_OT_ConfigureRenderCameraOperator,
     operators.SPRITESHEET_OT_LocateImageMagickOperator,
     operators.SPRITESHEET_OT_ModifyAnimationSetOperator,
+    operators.SPRITESHEET_OT_ModifyMaterialSetOperator,
     operators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
     operators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
     operators.SPRITESHEET_OT_OpenDirectoryOperator,

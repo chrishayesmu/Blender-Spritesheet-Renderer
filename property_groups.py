@@ -163,11 +163,21 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         return (True, None)
 
 class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
-    # You can only make CollectionProperties out of PropertyGroups, so this class just wraps bpy.types.Material
+    # All of these types have a materials property
+    _valid_target_types = { "CURVE", "GPENCIL", "MESH", "META" }
+
+    def _is_obj_valid_target(self, obj):
+        return obj.type in RenderTargetMaterialPropertyGroup._valid_target_types
 
     material: bpy.props.PointerProperty(
         name = "Material",
         type = bpy.types.Material
+    )
+
+    target: bpy.props.PointerProperty(
+        name = "Target",
+        type = bpy.types.ID,
+        poll = _is_obj_valid_target
     )
 
     def set_material_from_mesh(self, context: bpy.types.Context, mesh_index: int):
@@ -221,9 +231,7 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
-    selected_material_index: bpy.props.IntProperty(
-        get = lambda self: -1 # dummy getter and no setter means items in the list can't be selected
-    )
+    selected_material_index: bpy.props.IntProperty()
 
     shared_material: bpy.props.PointerProperty(
         name = "Material",
@@ -399,6 +407,7 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     ### Target objects
+    # TODO: add targets in camera, materials, and rotations and get rid of render targets completely
     render_targets: bpy.props.CollectionProperty(
         name = "Render Targets",
         type = RenderTargetPropertyGroup

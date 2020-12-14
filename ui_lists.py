@@ -22,14 +22,8 @@ class SPRITESHEET_UL_RenderTargetMaterialPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 
-        props = context.scene.SpritesheetPropertyGroup
-
-        if props.render_targets[index].mesh:
-            layout.label(text = props.render_targets[index].mesh.name, icon = "MESH_DATA")
-            layout.prop_search(item, "material", bpy.data, "materials", text = "")
-        else:
-            layout.active = False
-            layout.label(text = f"No Mesh Selected in Slot {index + 1}", icon = "MESH_DATA")
+        layout.prop_search(item, "target", bpy.data, "objects", text = "", icon = "OBJECT_DATA")
+        layout.prop_search(item, "material", bpy.data, "materials", text = "")
 
 class SPRITESHEET_UL_RenderTargetPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
