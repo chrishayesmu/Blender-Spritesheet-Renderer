@@ -4,6 +4,7 @@ import preferences
 import ui_panels
 from util import FileSystemUtil
 from util import ImageMagick
+import utils
 
 class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
     bl_idname = "spritesheet.configure_render_camera"
@@ -13,10 +14,10 @@ class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        if not props.render_camera:
+        if not props.camera_options.render_camera:
             return {"CANCELLED"}
 
-        props.render_camera.type = "ORTHO"
+        props.camera_options.render_camera.type = "ORTHO"
         return {"FINISHED"}
 
 class SPRITESHEET_OT_LocateImageMagickOperator(bpy.types.Operator):
@@ -59,13 +60,13 @@ class SPRITESHEET_OT_AssignMaterialSetOperator(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         props = context.scene.SpritesheetPropertyGroup
-        return props.control_materials
+        return props.material_options.control_materials
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        assert 0 <= self.index < len(props.material_sets)
+        assert 0 <= self.index < len(props.material_options.material_sets)
 
-        material_set = props.material_sets[self.index]
+        material_set = props.material_options.material_sets[self.index]
         is_valid, err = material_set.is_valid()
         if not is_valid:
             self.report({'ERROR'}, err)
@@ -89,18 +90,18 @@ class SPRITESHEET_OT_PlayAnimationSetOperator(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         props = context.scene.SpritesheetPropertyGroup
-        return props.control_animations
+        return props.animation_options.control_animations
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        assert 0 <= self.index < len(props.animation_sets)
+        assert 0 <= self.index < len(props.animation_options.animation_sets)
 
-        animation_set = props.animation_sets[self.index]
+        animation_set = props.animation_options.animation_sets[self.index]
 
         try:
             animation_set.assign_actions_to_targets()
         except Exception as e:
-            message: str = e.message if hasattr(e, "message") else str(e.args[0]) if len(e.args) > 0 else "An unknown error occurred."
+            message: str = utils.get_exception_message(e)
 
             self.report({'ERROR'}, message)
             print("Error in spritesheet.play_animation_set: " + message)
@@ -117,7 +118,7 @@ class SPRITESHEET_OT_PlayAnimationSetOperator(bpy.types.Operator):
             bpy.ops.screen.animation_play()
 
         # Update all other sets so their UI shows correctly
-        for anim_set in props.animation_sets:
+        for anim_set in props.animation_options.animation_sets:
             anim_set.is_previewing = False
 
         animation_set.is_previewing = True
@@ -136,18 +137,13 @@ class SPRITESHEET_OT_AddAnimationSetOperator(bpy.types.Operator):
     bl_label = "Add Animation Set"
     bl_options = {'UNDO'}
 
-    @classmethod
-    def poll(cls, context):
-        props = context.scene.SpritesheetPropertyGroup
-        return props.control_animations
-
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        animation_set = props.animation_sets.add()
+        animation_set = props.animation_options.animation_sets.add()
         animation_set.actions.add()
 
-        index = len(props.animation_sets) - 1
+        index = len(props.animation_options.animation_sets) - 1
         ui_panels.SPRITESHEET_PT_AnimationSetPanel.create_sub_panel(index)
 
         return {'FINISHED'}
@@ -163,20 +159,20 @@ class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         props = context.scene.SpritesheetPropertyGroup
-        return props.control_animations and len(props.animation_sets) > 1
+        return len(props.animation_options.animation_sets) > 1
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        if self.index < 0 or self.index >= len(props.animation_sets):
+        if self.index < 0 or self.index >= len(props.animation_options.animation_sets):
             return {'CANCELLED'}
 
-        animation_set = props.animation_sets[self.index]
+        animation_set = props.animation_options.animation_sets[self.index]
 
         # Cancel animation if we're removing the active preview; not necessary but nice to have
         if animation_set.is_previewing and context.screen.is_animation_playing:
             bpy.ops.screen.animation_cancel(restore_frame = False)
 
-        props.animation_sets.remove(self.index)
+        props.animation_options.animation_sets.remove(self.index)
 
         return {'FINISHED'}
 
@@ -198,17 +194,11 @@ class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
         ]
     )
 
-    @classmethod
-    def poll(cls, context):
-        props = context.scene.SpritesheetPropertyGroup
-
-        return props.control_animations
-
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        assert 0 <= self.animation_set_index < len(props.animation_sets), f"animation_set_index {self.animation_set_index} out of range [0, {len(props.animation_sets)}]"
+        assert 0 <= self.animation_set_index < len(props.animation_options.animation_sets), f"animation_set_index {self.animation_set_index} out of range [0, {len(props.animation_options.animation_sets)}]"
 
-        animation_set = props.animation_sets[self.animation_set_index]
+        animation_set = props.animation_options.animation_sets[self.animation_set_index]
 
         if self.operation == "add_action":
             animation_set.actions.add()
@@ -253,6 +243,104 @@ class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
 
 #endregion
 
+#region Camera targets
+
+class SPRITESHEET_OT_AddCameraTargetOperator(bpy.types.Operator):
+    """Add a new camera target"""
+    bl_idname = "spritesheet.add_camera_target"
+    bl_label = "Add Camera Target"
+    bl_options = {'UNDO'}
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        props.camera_options.targets.add()
+        return {'FINISHED'}
+
+class SPRITESHEET_OT_RemoveCameraTargetOperator(bpy.types.Operator):
+    """Remove this camera target"""
+    bl_idname = "spritesheet.remove_camera_target"
+    bl_label = "Remove Camera Target"
+    bl_options = {'UNDO'}
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return len(props.camera_options.targets) > 1
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if self.index < 0 or self.index >= len(props.camera_options.targets):
+            return {'CANCELLED'}
+
+        props.camera_options.targets.remove(self.index)
+
+        if props.camera_options.selected_target_index == self.index:
+            props.camera_options.selected_target_index = self.index - 1
+
+        return {'FINISHED'}
+
+class SPRITESHEET_OT_MoveCameraTargetUpOperator(bpy.types.Operator):
+    """Moves the selected Camera Target up in the list (i.e. from index to index - 1)."""
+    bl_idname = "spritesheet.move_camera_target_up"
+    bl_label = "Move Camera Target Up"
+    bl_options = {'UNDO_GROUPED'}
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return len(props.camera_options.targets) > 1
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if self.index <= 0 or self.index >= len(props.camera_options.targets):
+            return {'CANCELLED'}
+
+        new_index = self.index - 1
+
+        props.camera_options.targets.move(self.index, new_index)
+
+        if props.camera_options.selected_target_index == self.index:
+            props.camera_options.selected_target_index = new_index
+
+        return {'FINISHED'}
+
+class SPRITESHEET_OT_MoveCameraTargetDownOperator(bpy.types.Operator):
+    """Moves the selected Camera Target down in the list (i.e. from index to index + 1)."""
+    bl_idname = "spritesheet.move_camera_target_down"
+    bl_label = "Move Camera Target Down"
+    bl_options = {'UNDO_GROUPED'}
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return len(props.camera_options.targets) > 1
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if self.index < 0 or self.index >= len(props.camera_options.targets) - 1:
+            return {'CANCELLED'}
+
+        new_index = self.index + 1
+
+        props.camera_options.targets.move(self.index, new_index)
+
+        if props.camera_options.selected_target_index == self.index:
+            props.camera_options.selected_target_index = new_index
+
+        return {'FINISHED'}
+
+#endregion
+
 #region Materials set
 
 class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
@@ -261,20 +349,15 @@ class SPRITESHEET_OT_AddMaterialSetOperator(bpy.types.Operator):
     bl_label = "Add Material Set"
     bl_options = {'UNDO'}
 
-    @classmethod
-    def poll(cls, context):
-        props = context.scene.SpritesheetPropertyGroup
-        return props.control_materials
-
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
         # Create new material set and give it a single entry to start
-        material_set = props.material_sets.add()
+        material_set = props.material_options.material_sets.add()
         material_set.materials.add()
 
         # Register a new UI panel to display this material set
-        index = len(props.material_sets) - 1
+        index = len(props.material_options.material_sets) - 1
         ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(index)
 
         return {'FINISHED'}
@@ -291,14 +374,14 @@ class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
     def poll(cls, context):
         # Don't allow removing the last material set
         props = context.scene.SpritesheetPropertyGroup
-        return props.control_materials and len(props.material_sets) > 1
+        return len(props.material_options.material_sets) > 1
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        if self.index < 0 or self.index >= len(props.material_sets):
+        if self.index < 0 or self.index >= len(props.material_options.material_sets):
             return {'CANCELLED'}
 
-        props.material_sets.remove(self.index)
+        props.material_options.material_sets.remove(self.index)
 
         return {'FINISHED'}
 
@@ -320,17 +403,11 @@ class SPRITESHEET_OT_ModifyMaterialSetOperator(bpy.types.Operator):
         ]
     )
 
-    @classmethod
-    def poll(cls, context):
-        props = context.scene.SpritesheetPropertyGroup
-
-        return props.control_materials
-
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        assert 0 <= self.material_set_index < len(props.material_sets), f"material_set_index {self.material_set_index} out of range [0, {len(props.material_sets)}]"
+        assert 0 <= self.material_set_index < len(props.material_options.material_sets), f"material_set_index {self.material_set_index} out of range [0, {len(props.material_options.material_sets)}]"
 
-        material_set = props.material_sets[self.material_set_index]
+        material_set = props.material_options.material_sets[self.material_set_index]
 
         if self.operation == "add_target":
             material_set.materials.add()
@@ -376,90 +453,99 @@ class SPRITESHEET_OT_ModifyMaterialSetOperator(bpy.types.Operator):
 
 #endregion
 
-#region Render targets
+#region Rotation targets
 
-class SPRITESHEET_OT_MoveRenderTargetUpOperator(bpy.types.Operator):
-    """Moves the selected Render Target up in the list (i.e. from index to index - 1)."""
-    bl_idname = "spritesheet.move_render_target_up"
-    bl_label = "Move Render Target Up"
-    bl_options = {'UNDO_GROUPED'}
-
-    @classmethod
-    def poll(cls, context):
-        props = context.scene.SpritesheetPropertyGroup
-        return props.selected_render_target_index in range(1, len(props.render_targets))
-
-    def execute(self, context):
-        props = context.scene.SpritesheetPropertyGroup
-
-        index = props.selected_render_target_index
-        new_index = index - 1
-
-        props.render_targets.move(index, new_index)
-        props.selected_render_target_index = new_index
-
-        # Repeat this swap for material sets to stay in sync
-        for material_set in props.material_sets:
-            material_set.materials.move(index, new_index)
-
-        return {'FINISHED'}
-
-class SPRITESHEET_OT_MoveRenderTargetDownOperator(bpy.types.Operator):
-    """Moves the selected Render Target down in the list (i.e. from index to index + 1)."""
-    bl_idname = "spritesheet.move_render_target_down"
-    bl_label = "Move Render Target Down"
-    bl_options = {'UNDO_GROUPED'}
-
-    @classmethod
-    def poll(cls, context):
-        props = context.scene.SpritesheetPropertyGroup
-        return props.selected_render_target_index in range(0, len(props.render_targets) - 1)
-
-    def execute(self, context):
-        props = context.scene.SpritesheetPropertyGroup
-
-        index = props.selected_render_target_index
-        new_index = index + 1
-
-        props.render_targets.move(index, new_index)
-        props.selected_render_target_index = new_index
-
-        # Repeat this swap for material sets to stay in sync
-        for material_set in props.material_sets:
-            material_set.materials.move(index, new_index)
-
-        return {'FINISHED'}
-
-class SPRITESHEET_OT_AddRenderTargetOperator(bpy.types.Operator):
-    """Adds a new, empty Render Target slot to the spritesheet render targets."""
-    bl_idname = "spritesheet.add_render_target"
-    bl_label = "Add Target Object"
+class SPRITESHEET_OT_AddRotationTargetOperator(bpy.types.Operator):
+    """Add a new rotation target"""
+    bl_idname = "spritesheet.add_rotation_target"
+    bl_label = "Add Rotation Target"
     bl_options = {'UNDO'}
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        props.render_targets.add()
 
+        props.rotation_options.targets.add()
         return {'FINISHED'}
 
-class SPRITESHEET_OT_RemoveRenderTargetOperator(bpy.types.Operator):
-    """Removes the selected Render Target from the spritesheet render targets."""
-    bl_idname = "spritesheet.remove_render_target"
-    bl_label = "Remove Render Target"
+class SPRITESHEET_OT_RemoveRotationTargetOperator(bpy.types.Operator):
+    """Remove this rotation target"""
+    bl_idname = "spritesheet.remove_rotation_target"
+    bl_label = "Remove Rotation Target"
     bl_options = {'UNDO'}
+
+    index: bpy.props.IntProperty()
 
     @classmethod
     def poll(cls, context):
-        # Don't allow removing the last target
         props = context.scene.SpritesheetPropertyGroup
-        return len(props.render_targets) > 1
+        return len(props.rotation_options.targets) > 1
 
     def execute(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        if props.selected_render_target_index < 0 or props.selected_render_target_index >= len(props.render_targets):
+
+        if self.index < 0 or self.index >= len(props.rotation_options.targets):
             return {'CANCELLED'}
 
-        props.render_targets.remove(props.selected_render_target_index)
+        props.rotation_options.targets.remove(self.index)
+
+        if props.rotation_options.selected_target_index == self.index:
+            props.rotation_options.selected_target_index = self.index - 1
+
+        return {'FINISHED'}
+
+class SPRITESHEET_OT_MoveRotationTargetUpOperator(bpy.types.Operator):
+    """Moves the selected Rotation Target up in the list (i.e. from index to index - 1)."""
+    bl_idname = "spritesheet.move_rotation_target_up"
+    bl_label = "Move Rotation Target Up"
+    bl_options = {'UNDO_GROUPED'}
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return len(props.rotation_options.targets) > 1
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if self.index <= 0 or self.index >= len(props.rotation_options.targets):
+            return {'CANCELLED'}
+
+        new_index = self.index - 1
+
+        props.rotation_options.targets.move(self.index, new_index)
+
+        if props.rotation_options.selected_target_index == self.index:
+            props.rotation_options.selected_target_index = new_index
+
+        return {'FINISHED'}
+
+class SPRITESHEET_OT_MoveRotationTargetDownOperator(bpy.types.Operator):
+    """Moves the selected Rotation Target down in the list (i.e. from index to index + 1)."""
+    bl_idname = "spritesheet.move_rotation_target_down"
+    bl_label = "Move Rotation Target Down"
+    bl_options = {'UNDO_GROUPED'}
+
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+        return len(props.rotation_options.targets) > 1
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if self.index < 0 or self.index >= len(props.rotation_options.targets) - 1:
+            return {'CANCELLED'}
+
+        new_index = self.index + 1
+
+        props.rotation_options.targets.move(self.index, new_index)
+
+        if props.rotation_options.selected_target_index == self.index:
+            props.rotation_options.selected_target_index = new_index
 
         return {'FINISHED'}
 

@@ -4,26 +4,27 @@ class SPRITESHEET_UL_AnimationActionPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 
-        # Three column layout: mesh name, action and # of frames in action,
-        # with the action selection being the largest item
-        col_size = .4
-        split = layout.split(factor = col_size)
-        split.prop_search(item, "target", bpy.data, "objects", text = "")
+        layout.label(text = item.target.name if item.target else "N/A", icon = "OBJECT_DATA")
 
-        # Split second half so its left column is the same as the first column
-        sub = split.split(factor = col_size / (1 - col_size))
-        sub.prop_search(item, "action", bpy.data, "actions", text = "")
+        split = layout.split(factor = 0.7)
+        split.label(text = item.action.name if item.action else "N/A", icon = "ACTION")
 
-        sub = sub.column()
-        sub.alignment = "RIGHT"
-        sub.label(text = f"Frames {item.min_frame}-{item.max_frame}" if item.action else "")
+        sub = split.column()
+        sub.label(text = f"Frames {item.min_frame}-{item.max_frame}" if item.action else " ")
 
-class SPRITESHEET_UL_RenderTargetMaterialPropertyList(bpy.types.UIList):
-    def draw_item(self, context, layout, data: "MaterialSetPropertyGroup", item: "RenderTargetMaterialPropertyGroup", icon, active_data, active_propname, index):
+class SPRITESHEET_UL_CameraTargetPropertyList(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 
-        target_name = item.target.name if item.target else "<N/A>"
-        material_name = "Shared material" if data.mode == "shared" else item.material.name if item.material else "<N/A>"
+        layout.label(text = "", icon = "DECORATE")
+        layout.prop_search(item, "target", bpy.data, "objects", text = "")
+
+class SPRITESHEET_UL_MaterialSetTargetPropertyList(bpy.types.UIList):
+    def draw_item(self, context, layout, data: "MaterialSetPropertyGroup", item: "MaterialSetTargetPropertyGroup", icon, active_data, active_propname, index):
+        #pylint: disable=unused-argument,no-self-use
+
+        target_name = item.target.name if item.target else "N/A"
+        material_name = "Shared material" if data.mode == "shared" else item.material.name if item.material else "N/A"
 
         layout.label(text = target_name,  icon = "OBJECT_DATA")
 
@@ -31,21 +32,9 @@ class SPRITESHEET_UL_RenderTargetMaterialPropertyList(bpy.types.UIList):
         sub.enabled = data.mode == "individual" # fade out shared material name for clarity that this won't be modifiable per-row
         sub.label(text = material_name, icon = "MATERIAL")
 
-class SPRITESHEET_UL_RenderTargetPropertyList(bpy.types.UIList):
+class SPRITESHEET_UL_RotationTargetPropertyList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         #pylint: disable=unused-argument,no-self-use
 
         layout.label(text = "", icon = "DECORATE")
-        layout.prop_search(item, "mesh", bpy.data, "meshes", text = "")
-
-class SPRITESHEET_UL_RotationRootPropertyList(bpy.types.UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        #pylint: disable=unused-argument,no-self-use
-
-        if item.mesh:
-            layout.label(text = item.mesh.name, icon = "MESH_DATA")
-            layout.label(text = "rotates around")
-            layout.prop_search(item, "rotation_root", bpy.data, "objects", text = "")
-        else:
-            layout.active = False
-            layout.label(text = f"No Mesh Selected in Slot {index + 1}", icon = "MESH_DATA")
+        layout.prop_search(item, "target", bpy.data, "objects", text = "")

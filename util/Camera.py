@@ -10,24 +10,24 @@ import utils
 # Public methods: same as private but don't return the Bounds object
 ####################################################################################
 
-def fit_camera_to_render_targets(context: bpy.types.Context):
-    _select_only_render_targets(context.scene)
+def fit_camera_to_targets(context: bpy.types.Context):
+    _select_only_camera_targets(context.scene)
     bpy.ops.view3d.camera_to_view_selected()
 
 def optimize_for_animation_set(context: bpy.types.Context, animation_set: Optional[AnimationSetPropertyGroup]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_animation_set(context, props.render_camera, props.render_camera_obj, animation_set)
+    _optimize_for_animation_set(context, props.camera_options.render_camera, props.camera_options.render_camera_obj, animation_set)
 
 def optimize_for_all_frames(context: bpy.types.Context, rotations_degrees: List[Optional[int]], animation_sets: List[AnimationSetPropertyGroup]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_all_frames(context, props.render_camera, props.render_camera_obj, rotations_degrees, animation_sets)
+    _optimize_for_all_frames(context, props.camera_options.render_camera, props.camera_options.render_camera_obj, rotations_degrees, animation_sets)
 
 def optimize_for_rotation(context: bpy.types.Context, rotation_degrees: List[Optional[int]], animation_sets: List[AnimationSetPropertyGroup]):
     props = context.scene.SpritesheetPropertyGroup
 
-    _optimize_for_rotation(context, props.render_camera, props.render_camera_obj, rotation_degrees, animation_sets)
+    _optimize_for_rotation(context, props.camera_options.render_camera, props.camera_options.render_camera_obj, rotation_degrees, animation_sets)
 
 ####################################################################################
 # Internal methods: all return Bounds so they can call each other usefully
@@ -67,10 +67,11 @@ def _optimize_for_rotation(context: bpy.types.Context, camera: bpy.types.Camera,
     if camera.type != "ORTHO":
         raise RuntimeError("Camera.optimize_for_rotation currently only works for orthographic cameras")
 
-    _select_only_render_targets(context.scene)
+    _select_only_camera_targets(context.scene)
 
     if rotation_degrees is not None:
-        utils.rotate_render_targets(context.scene.SpritesheetPropertyGroup, z_rot_degrees = rotation_degrees)
+        rotation_targets = list(map(lambda t: t.target, context.scene.SpritesheetPropertyGroup.rotation_options.targets))
+        utils.rotate_objects(rotation_targets, z_rot_degrees = rotation_degrees)
 
     cumulative_bounds = None
 
@@ -95,7 +96,7 @@ def _find_bounding_box_for_animation_set(context: bpy.types.Context, camera: bpy
     """Returns a Bounds object describing the minimal bounding box that can fit all frames of the animation set"""
     scene = context.scene
 
-    _select_only_render_targets(context.scene)
+    _select_only_camera_targets(context.scene)
     frame_data = animation_set.get_frame_data()
 
     cumulative_bounds = None
@@ -123,9 +124,9 @@ def _get_camera_image_plane(camera: bpy.types.Camera, camera_obj: bpy.types.Obje
 
     return Bounds.from_center_and_size(camera_obj.location, size_vec)
 
-def _select_only_render_targets(scene: bpy.types.Scene):
+def _select_only_camera_targets(scene: bpy.types.Scene):
     props = scene.SpritesheetPropertyGroup
 
     for obj in scene.objects:
-        is_target = any(target.mesh_object is obj for target in props.render_targets)
+        is_target = any(target is obj for target in props.camera_options.targets)
         obj.select_set(is_target)

@@ -35,10 +35,10 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         try:
             validators = [
                 cls._validate_image_magick_install,
-                cls._validate_render_targets,
                 cls._validate_animation_options,
                 cls._validate_camera_options,
-                cls._validate_material_options
+                cls._validate_material_options,
+                cls._validate_rotation_options
             ]
 
             for validator in validators:
@@ -59,19 +59,19 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     def _validate_animation_options(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
-        if not props.control_animations:
+        if not props.animation_options.control_animations:
             return (True, None)
 
-        for index, animation_set in enumerate(props.animation_sets):
+        for index, animation_set in enumerate(props.animation_options.animation_sets):
             is_valid, err = animation_set.is_valid()
             if not is_valid:
                 return (False, f"Animation Set {index + 1} - \"{animation_set.name}\" is invalid: {err}")
 
         # Check every animation set has a unique name, since we use the set name in the temporary output filenames and the output JSON
-        names = set(animation_set.name for animation_set in props.animation_sets)
+        names = set(animation_set.name for animation_set in props.animation_options.animation_sets)
 
-        if len(names) != len(props.animation_sets):
-            num_repeats = len(props.animation_sets) - len(names)
+        if len(names) != len(props.animation_options.animation_sets):
+            num_repeats = len(props.animation_options.animation_sets) - len(names)
             suffix = "1 set needs to be renamed." if num_repeats == 1 else f"{num_repeats} sets need to be renamed."
             return (False, "Every animation set must have a unique name. " + suffix)
 
@@ -81,14 +81,10 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     def _validate_camera_options(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
-        if not props.control_camera:
-            return (True, None)
+        is_valid, err = props.camera_options.is_valid()
 
-        if not props.render_camera:
-            return (False, "'Control Camera' is enabled, but Render Camera is not set.")
-
-        if props.render_camera.type != "ORTHO":
-            return (False, "'Control Camera' is currently only supported for orthographic cameras.")
+        if not is_valid:
+            return (False, "Camera Options are invalid: " + err)
 
         return (True, None)
 
@@ -103,14 +99,14 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     def _validate_material_options(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
-        if not props.control_materials:
+        if not props.material_options.control_materials:
             return (True, None)
 
-        if len(props.material_sets) == 0:
+        if len(props.material_options.material_sets) == 0:
             return (False, "'Control Materials' is enabled, but no material sets have been created.")
 
         # Validate sets individually first
-        for set_index, material_set in enumerate(props.material_sets):
+        for set_index, material_set in enumerate(props.material_options.material_sets):
             is_valid, err = material_set.is_valid()
 
             if not is_valid:
@@ -118,7 +114,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         # Check that each material set role is only used once, except for Other
         material_sets_by_role: Dict[str, List[Dict[str, Any]]] = collections.defaultdict(list)
-        for set_index, material_set in enumerate(props.material_sets):
+        for set_index, material_set in enumerate(props.material_options.material_sets):
             material_sets_by_role[material_set.role].append({ "index": set_index, "set": material_set })
 
         for role, sets in material_sets_by_role.items():
@@ -130,26 +126,13 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         return (True, None)
 
     @classmethod
-    def _validate_render_targets(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
+    def _validate_rotation_options(cls, context: bpy.types.Context)  -> Tuple[bool, Optional[str]]:
         props = context.scene.SpritesheetPropertyGroup
 
-        if not props.render_targets or len(props.render_targets) == 0:
-            return (False, "There are no Render Targets set.")
+        is_valid, err = props.rotation_options.is_valid()
 
-        for index, o in enumerate(props.render_targets):
-            obj = o.mesh_object
-
-            if obj is None:
-                return (False, f"Target Mesh slot #{index + 1} has no mesh selected. If unwanted, remove the slot.")
-
-        # Check if any mesh is selected twice
-        seen_meshes = []
-
-        for target in props.render_targets:
-            if target.mesh in seen_meshes:
-                return (False, f"Mesh \"{target.mesh.name}\" is referenced more than once in Render Targets.")
-
-            seen_meshes.append(target.mesh)
+        if not is_valid:
+            return (False, "Rotation Options are invalid: " + err)
 
         return (True, None)
 
@@ -159,6 +142,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._json_data: Dict[str, Any] = {}
         self._output_dir: Optional[str] = None
         self._error: Optional[str]  = None
+        self._exception_trace: Optional[str] = None
         self._last_job_id: int = -1
         self._last_job_start_time: Optional[float] = None
         self._next_job_id: int = 0
@@ -188,7 +172,14 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         # Check if the generator is done (i.e. we're finished rendering)
         sentinel = object()
-        if next(self._generator, sentinel) == sentinel and not self._error:
+        try:
+            next_val = next(self._generator, sentinel)
+        except Exception as e:
+            next_val = None
+            self._error = utils.get_exception_message(e)
+            self._exception_trace = traceback.format_exc()
+
+        if next_val == sentinel and not self._error:
             self.cancel(context)
             return {"FINISHED"}
 
@@ -220,8 +211,12 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         if self._error:
             self._terminal_writer.indent = 0
-            self._terminal_writer.write("\n\nError occurred, cancelling operator: {}\n\n".format(self._error))
+            self._terminal_writer.write("\n\nError occurred, cancelling bpy.ops.spritesheet.render operator: {}\n\n".format(self._error), bypass_output_suppression = True)
             self.report({'ERROR'}, self._error)
+
+            if self._exception_trace:
+                self._terminal_writer.write("\n\nException occurred in bpy.ops.spritesheet.render:\n", bypass_output_suppression = True)
+                self._terminal_writer.write(self._exception_trace, bypass_output_suppression = True)
 
     def _generate_frames_and_spritesheets(self, context: bpy.types.Context) -> Generator[None, None, None]:
         #pylint: disable=too-many-branches
@@ -247,25 +242,25 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._set_render_settings(context)
         self._terminal_writer.clear()
 
-        if props.control_camera:
-            scene.camera = props.render_camera_obj
+        if props.camera_options.control_camera:
+            scene.camera = props.camera_options.render_camera_obj
 
         animation_sets: List[Optional[bpy.types.AnimationSetPropertyGroup]]
         separate_files_per_animation: bool
-        if props.control_animations:
-            animation_sets = props.animation_sets
+        if props.animation_options.control_animations:
+            animation_sets = props.animation_options.animation_sets
             separate_files_per_animation = props.separate_files_per_animation
         else:
             animation_sets = [None]
             separate_files_per_animation = False
 
-        material_sets = props.material_sets if props.control_materials else [None]
+        material_sets = props.material_options.material_sets if props.material_options.control_materials else [None]
 
         # TODO there's no reason the rotation couldn't be float, except for determining the output file name
         rotations: List[int]
         separate_files_per_rotation: bool
-        if props.control_rotation:
-            rotations = [int(n * (360 / props.num_rotations)) for n in range(props.num_rotations)]
+        if props.rotation_options.control_rotation:
+            rotations = [int(n * (360 / props.rotation_options.num_rotations)) for n in range(props.rotation_options.num_rotations)]
             separate_files_per_rotation = props.separate_files_per_rotation
         else:
             rotations = [None]
@@ -290,7 +285,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # We yield once before modifying the scene at all, so that all of the reporting properties are set up
         yield
 
-        if props.control_camera and props.camera_control_mode == "move_once":
+        if props.camera_options.control_camera and props.camera_options.camera_control_mode == "move_once":
             self._optimize_camera(context, rotations = rotations, animation_sets = animation_sets)
 
         self._terminal_writer.write("\n")
@@ -317,10 +312,10 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 self._terminal_writer.write("Rendering angle {} of {}: {} degrees\n".format(rotation_number, len(rotations), rotation_angle))
                 self._terminal_writer.indent += 1
 
-                if props.control_rotation:
-                    self._rotate_target_objects(context, rotation_angle)
+                if props.rotation_options.control_rotation:
+                    props.rotation_options.rotate_objects(rotation_angle)
 
-                if props.control_camera and props.camera_control_mode == "move_each_rotation":
+                if props.camera_options.control_camera and props.camera_options.camera_control_mode == "move_each_rotation":
                     self._optimize_camera(context, rotations = rotations, animation_sets = animation_sets, current_rotation = rotation_angle)
 
                 temp_dir_path = temp_dir.name
@@ -456,15 +451,15 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # Make sure output directory exists
         pathlib.Path(os.path.dirname(output_file_path)).mkdir(exist_ok = True)
 
-        material_set = props.material_sets[material_set_index]
+        material_set = props.material_options.material_sets[material_set_index]
         if include_material_set and material_set is not None:
             # Possible TODO: only include index if necessary (i.e. multiple material sets have the same role). Pretty low priority
             output_file_path += "_" + self._format_string_for_filename(material_set.role) + "_" + str(material_set_index)
 
-        if props.control_animations and props.separate_files_per_animation:
+        if props.animation_options.control_animations and props.separate_files_per_animation:
             output_file_path += "_" + self._format_string_for_filename(animation_set.name)
 
-        if props.control_rotation and props.separate_files_per_rotation:
+        if props.rotation_options.control_rotation and props.separate_files_per_rotation:
             output_file_path += "_rot" + str(rotation_angle).zfill(3)
 
         return output_file_path
@@ -474,8 +469,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._report_job("JSON dump", "writing JSON attributes", job_id, reporting_props)
 
         # Action and rotation are the same for each record if using separate files, so just grab the first value
-        animation_set: Optional[AnimationSetPropertyGroup] = render_data[0]["animation_set"] if props.control_animations and props.separate_files_per_animation else None
-        rotation: Optional[int] = render_data[0]["rotation"] if props.control_rotation and props.separate_files_per_rotation else None
+        animation_set: Optional[AnimationSetPropertyGroup] = render_data[0]["animation_set"] if props.animation_options.control_animations and props.separate_files_per_animation else None
+        rotation: Optional[int] = render_data[0]["rotation"] if props.rotation_options.control_rotation and props.separate_files_per_rotation else None
 
         json_file_path = self._create_file_path(props, 0, animation_set, rotation, include_material_set = False) + ".ssdata"
 
@@ -497,7 +492,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             "numRows": image_magick_data["args"]["numRows"]
         }
 
-        if props.control_materials:
+        if props.material_options.control_materials:
             # If using materials, need to reference where the spritesheet for each material is located
             json_data["materialData"] = []
 
@@ -518,7 +513,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
             json_data["imageFile"] = os.path.basename(image_path)
 
-        if props.control_animations:
+        if props.animation_options.control_animations:
             json_data["animations"] = []
         else:
             json_data["stills"] = []
@@ -527,8 +522,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             out_data = { }
 
             # Animation data (if present)
-            if props.control_animations:
-                assert "animation_set" in in_data, "props.control_animations is enabled, but data object didn't have 'animation_set' key"
+            if props.animation_options.control_animations:
+                assert "animation_set" in in_data, "props.animation_options.control_animations is enabled, but data object didn't have 'animation_set' key"
 
                 out_data["frameRate"] = in_data["animation_set"].output_frame_rate
                 out_data["name"] = in_data["animation_set"].name
@@ -584,34 +579,34 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         props = context.scene.SpritesheetPropertyGroup
         reporting_props = context.scene.ReportingPropertyGroup
 
-        if not props.control_camera:
+        if not props.camera_options.control_camera:
             raise RuntimeError("_optimizeCamera called without control_camera option enabled")
 
         job_id = self._get_next_job_id()
         job_title = "Optimizing camera"
 
-        if props.camera_control_mode == "move_once":
+        if props.camera_options.camera_control_mode == "move_once":
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the entire render", job_id, reporting_props)
 
             CameraUtil.optimize_for_all_frames(context, rotations, animation_sets)
-        elif props.camera_control_mode == "move_each_frame":
+        elif props.camera_options.camera_control_mode == "move_each_frame":
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the current frame", job_id, reporting_props)
 
-            CameraUtil.fit_camera_to_render_targets(context)
-        elif props.camera_control_mode == "move_each_animation":
+            CameraUtil.fit_camera_to_targets(context)
+        elif props.camera_options.camera_control_mode == "move_each_animation":
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the current animation", job_id, reporting_props)
 
             CameraUtil.optimize_for_animation_set(context, current_animation_set)
-        elif props.camera_control_mode == "move_each_rotation":
+        elif props.camera_options.camera_control_mode == "move_each_rotation":
             if report_job:
                 self._report_job(job_title, "finding parameters to cover the current rotation angle", job_id, reporting_props)
 
             CameraUtil.optimize_for_rotation(context, current_rotation, animation_sets)
 
-        complete_msg = f"Camera will render from {StringUtil.format_number(props.render_camera_obj.location)}, with an ortho_scale of {StringUtil.format_number(props.render_camera.ortho_scale)}"
+        complete_msg = f"Camera will render from {StringUtil.format_number(props.camera_options.render_camera_obj.location)}, with an ortho_scale of {StringUtil.format_number(props.camera_options.render_camera.ortho_scale)}"
 
         if report_job:
             self._report_job(job_title, complete_msg, job_id, reporting_props, is_complete = True)
@@ -704,7 +699,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             "rotation": rotation
         }
 
-        if props.control_camera and props.camera_control_mode == "move_each_animation":
+        if props.camera_options.control_camera and props.camera_options.camera_control_mode == "move_each_animation":
             self._optimize_camera(context, current_animation_set = animation_set)
 
         # Go frame-by-frame and render the object
@@ -719,7 +714,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             # no matter what configuration options we're using
             filename = animation_set.name + "_"
 
-            if props.control_rotation:
+            if props.rotation_options.control_rotation:
                 filename += "rot" + str(rotation).zfill(3) + "_"
 
             filename += str(index).zfill(num_digits_in_frame_max)
@@ -751,7 +746,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         filename = "out_still_" + str(frame_number).zfill(4)
 
-        if props.control_rotation:
+        if props.rotation_options.control_rotation:
             filename += "_rot" + str(rotation_angle).zfill(3)
 
         filename += ".png"
@@ -827,13 +822,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # Don't persist the progress bar and time or else they'd fill the terminal every time we write
         self._terminal_writer.write(msg, unpersisted_portion = progress_bar + time_string, persist_msg = persist_message)
 
-    def _rotate_target_objects(self, context: bpy.types.Context, angle_degrees: int):
-        props = context.scene.SpritesheetPropertyGroup
-
-        for target in props.render_targets:
-            rotation_root = target.rotation_root if target.rotation_root else target.mesh_object
-            rotation_root.rotation_euler[2] = math.radians(angle_degrees)
-
     def _run_render_without_stdout(self, context: bpy.types.Context):
         """Renders a single frame without printing the norma message to stdout
 
@@ -843,7 +831,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         props = context.scene.SpritesheetPropertyGroup
         reporting_props = context.scene.ReportingPropertyGroup
 
-        if props.control_camera and props.camera_control_mode == "move_each_frame":
+        if props.camera_options.control_camera and props.camera_options.camera_control_mode == "move_each_frame":
             # Don't report job because this method is always being called inside of another job
             self._optimize_camera(context, report_job = False)
 
@@ -867,7 +855,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         job_id = self._get_next_job_id()
         self._report_job("ImageMagick", f"Combining {total_num_frames} frames into spritesheet with ImageMagick", job_id, reporting_props)
 
-        output_file_path = self._create_file_path(props, material_set_index, animation_set, rotation_angle, include_material_set = props.control_materials) + ".png"
+        output_file_path = self._create_file_path(props, material_set_index, animation_set, rotation_angle, include_material_set = props.material_options.control_materials) + ".png"
         image_magick_output = ImageMagick.assemble_frames_into_spritesheet(props.sprite_size, total_num_frames, temp_dir_path, output_file_path)
 
         if not image_magick_output["succeeded"]:

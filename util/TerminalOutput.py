@@ -21,8 +21,8 @@ class TerminalWriter:
         self._out_stream.write("\x1b[2J\x1b[H")
         self._out_stream.flush()
 
-    def write(self, msg: str, unpersisted_portion: Optional[str] = None, persist_msg: bool = True, ignore_indent: bool = False):
-        if self._suppress_output or not self._out_stream.isatty():
+    def write(self, msg: str, unpersisted_portion: Optional[str] = None, persist_msg: bool = True, ignore_indent: bool = False, bypass_output_suppression: bool = False):
+        if (self._suppress_output and not bypass_output_suppression) or not self._out_stream.isatty():
             return
 
         # Remove any leading newlines to add back later, so they don't mess with the indent.

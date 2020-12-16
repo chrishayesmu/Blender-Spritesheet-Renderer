@@ -1,7 +1,7 @@
 import bpy
 from copy import deepcopy
 import math
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import preferences
 
@@ -50,31 +50,78 @@ class BaseAddonPanel:
 
         return box
 
-    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, item_dyntip_propname: str = "", min_rows: int = 1,
-                      add_op: Optional[str] = None, remove_op: Optional[str] = None, reorder_up_op: Optional[str] = None, reorder_down_op: Optional[str] = None):
+    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, item_dyntip_propname: str = "",
+                      min_rows: int = 1, header_labels: List[str] = None,
+                      add_op: Optional[Union[str, Tuple[str, Dict[str, Any]]]] = None,
+                      remove_op: Optional[Union[str, Tuple[str, Dict[str, Any]]]] = None,
+                      reorder_up_op: Optional[Union[str, Tuple[str, Dict[str, Any]]]] = None,
+                      reorder_down_op: Optional[Union[str, Tuple[str, Dict[str, Any]]]] = None):
+        """Helper method for standardizing the appearance of lists within the addon, as well as being able to add some controls along the right side.
+
+        Most arguments match their equivalent in bpy.types.UILayout.template_list. Operator arguments can be either the argument name by itself, or the name
+        plus a dictionary of key-value pairs to pass to the operator.
+        """
+
         list_obj = getattr(dataptr, propname)
+        show_header_row = header_labels and len(header_labels) > 0
+        header_row_scale = 0.5
 
         row = layout.row()
+        list_col = row.column()
+
+        # Header row above the list: these settings make them roughly aligned with the columns in the list
+        if show_header_row:
+            sub = list_col.row()
+            sub.scale_y = header_row_scale
+
+            for label in header_labels:
+                text: str
+                icon: str
+
+                if isinstance(label, str):
+                    text = label
+                    icon = "NONE"
+                elif isinstance(label, tuple):
+                    if len(label) == 2:
+                        text, icon = label
+                    elif len(label) == 3:
+                        text, icon, split_factor = label
+                        sub = sub.split(factor = split_factor)
+                    else:
+                        raise ValueError(f"Don't know how to process header label {label}")
+                else:
+                    raise ValueError(f"Don't know how to process header label {label}")
+
+                col = sub.column()
+                col.label(text = text, icon = icon)
 
         # Mostly passthrough but with a couple of standardized params
-        row.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, item_dyntip_propname = item_dyntip_propname, rows = min(5, max(min_rows, len(list_obj))), maxrows = 5)
+        list_col.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, item_dyntip_propname = item_dyntip_propname, rows = min(5, max(min_rows, len(list_obj))), maxrows = 5)
 
         if add_op or remove_op or reorder_up_op or reorder_down_op:
-            col = row.column(align = True)
+            button_col = row.column(align = True)
+
+            if show_header_row:
+                row = button_col.row()
+                row.scale_y = header_row_scale + 0.1
+                row.alignment = "CENTER"
+                row.label(text = "")
 
             if add_op:
-                self._emit_operator(col, add_op, "ADD")
+                self._emit_operator(button_col, add_op, "ADD")
 
             if remove_op:
-                self._emit_operator(col, remove_op, "REMOVE")
+                self._emit_operator(button_col, remove_op, "REMOVE")
 
-            col.separator()
+            button_col.separator()
 
             if reorder_up_op:
-                self._emit_operator(col, reorder_up_op, "TRIA_UP")
+                self._emit_operator(button_col, reorder_up_op, "TRIA_UP")
 
             if reorder_down_op:
-                self._emit_operator(col, reorder_down_op, "TRIA_DOWN")
+                self._emit_operator(button_col, reorder_down_op, "TRIA_DOWN")
+
+        return list_col
 
     def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = ""):
         lines = UIUtil.wrap_text_in_region(context, text)
@@ -122,12 +169,12 @@ class SPRITESHEET_PT_AnimationsPanel(BaseAddonPanel, bpy.types.Panel):
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.prop(props, "control_animations", text = "")
+        self.layout.prop(props.animation_options, "control_animations", text = "")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.active = props.control_animations
+        self.layout.active = props.animation_options.control_animations
         self.layout.operator("spritesheet.add_animation_set", text = "Add Animation Set", icon = "ADD")
 
 class SPRITESHEET_PT_AnimationSetPanel():
@@ -141,7 +188,7 @@ class SPRITESHEET_PT_AnimationSetPanel():
     def poll(cls, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        return cls.index < len(props.animation_sets)
+        return cls.index < len(props.animation_options.animation_sets)
 
     @classmethod
     def create_sub_panel(cls, index):
@@ -149,23 +196,21 @@ class SPRITESHEET_PT_AnimationSetPanel():
 
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        animation_set = props.animation_sets[self.index]
+        animation_set = props.animation_options.animation_sets[self.index]
+        frame_data = animation_set.get_frame_data()
 
-        num_frames = 0
-        selected_actions = animation_set.get_selected_actions()
-        if len(selected_actions) > 0:
-            num_frames = max([a.num_frames for a in selected_actions])
-
-        self.layout.enabled = props.control_animations
+        self.layout.enabled = props.animation_options.control_animations
         self.layout.use_property_split = True
         self.layout.prop(animation_set, "name", text = f"Animation Set {self.index + 1}")
 
-        if num_frames > 0:
-            self.layout.label(text = f"{num_frames} frames at {animation_set.output_frame_rate} fps")
+        if frame_data:
+            sub = self.layout.column()
+            sub.alignment = "RIGHT"
+            sub.label(text = f"{frame_data.num_frames} frames at {animation_set.output_frame_rate} fps")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        animation_set = props.animation_sets[self.index]
+        animation_set = props.animation_options.animation_sets[self.index]
 
         add_op = ("spritesheet.modify_animation_set", {
             "animation_set_index": self.index,
@@ -184,7 +229,7 @@ class SPRITESHEET_PT_AnimationSetPanel():
         move_down_op = deepcopy(remove_op)
         move_down_op[1]["operation"] = "move_action_down"
 
-        self.layout.enabled = props.control_animations
+        self.layout.enabled = props.animation_options.control_animations
 
         row = self.layout.row(align = True)
         row.operator("spritesheet.remove_animation_set", text = "Remove Set", icon = "REMOVE").index = self.index
@@ -197,18 +242,28 @@ class SPRITESHEET_PT_AnimationSetPanel():
         self.layout.separator()
         self.layout.prop(animation_set, "output_frame_rate")
 
-        self.template_list(self.layout,
-                           "SPRITESHEET_UL_AnimationActionPropertyList", # Class name
-                           "", # List ID (blank to generate)
-                           animation_set, # List items property source
-                           "actions", # List items property name
-                           animation_set, # List index property source
-                           "selected_action_index", # List index property name
-                           add_op = add_op,
-                           remove_op = remove_op,
-                           reorder_up_op = move_up_op,
-                           reorder_down_op = move_down_op
+        self.layout.separator()
+
+        list_col = self.template_list(self.layout,
+                                      "SPRITESHEET_UL_AnimationActionPropertyList", # Class name
+                                      "", # List ID (blank to generate)
+                                      animation_set, # List items property source
+                                      "actions", # List items property name
+                                      animation_set, # List index property source
+                                      "selected_action_index", # List index property name
+                                      min_rows = 4,
+                                      header_labels = [ " Target", ("Action", "NONE", 0.685), "Frame Range"],
+                                      add_op = add_op,
+                                      remove_op = remove_op,
+                                      reorder_up_op = move_up_op,
+                                      reorder_down_op = move_down_op
         )
+
+        prop = animation_set.actions[animation_set.selected_action_index]
+
+        list_col.separator()
+        list_col.prop_search(prop, "target", bpy.data, "objects", text = "Target Object", icon = "OBJECT_DATA")
+        list_col.prop_search(prop, "action", bpy.data, "actions", text = "Action", icon = "ACTION")
 
         # Show a warning if there are actions with different frame ranges
         set_frame_data = animation_set.get_frame_data()
@@ -227,14 +282,45 @@ class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.prop(props, "control_camera", text = "")
+        self.layout.prop(props.camera_options, "control_camera", text = "")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.active = props.control_camera
-        self.layout.prop_search(props, "render_camera", bpy.data, "cameras")
-        self.layout.prop(props, "camera_control_mode")
+        self.layout.active = props.camera_options.control_camera
+        self.layout.prop_search(props.camera_options, "render_camera", bpy.data, "cameras")
+        self.layout.prop(props.camera_options, "camera_control_mode")
+
+        self.layout.separator()
+
+        add_op = "spritesheet.add_camera_target"
+
+        remove_op = ("spritesheet.remove_camera_target", {
+            "index": props.camera_options.selected_target_index
+        })
+
+        move_up_op = ("spritesheet.move_camera_target_up", {
+            "index": props.camera_options.selected_target_index
+        })
+
+        move_down_op = ("spritesheet.move_camera_target_down", {
+            "index": props.camera_options.selected_target_index
+        })
+
+        self.template_list(self.layout,
+                           "SPRITESHEET_UL_CameraTargetPropertyList", # Class name
+                           "spritesheet_CameraOptionsPanel_camera_target_list", # List ID (blank to generate)
+                           props.camera_options, # List items property source
+                           "targets", # List items property name
+                           props.camera_options, # List index property source
+                           "selected_target_index", # List index property name,
+                           min_rows = 4,
+                           header_labels = ["Each object selected here will be framed by the camera."],
+                           add_op = add_op,
+                           remove_op = remove_op,
+                           reorder_up_op = move_up_op,
+                           reorder_down_op = move_down_op
+        )
 
 class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_jobmanagement"
@@ -301,7 +387,7 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
             if "imagemagick" in reason_lower:
                 box.operator("spritesheet.prefs_locate_imagemagick", text = "Locate Automatically")
         elif "orthographic" in reason_lower:
-            box.operator("spritesheet.configure_render_camera", text = f"Make Camera \"{props.render_camera.name}\" Ortho")
+            box.operator("spritesheet.configure_render_camera", text = f"Make Camera \"{props.camera_options.render_camera.name}\" Ortho")
 
 class SPRITESHEET_PT_MaterialsPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_materials"
@@ -310,12 +396,12 @@ class SPRITESHEET_PT_MaterialsPanel(BaseAddonPanel, bpy.types.Panel):
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.prop(props, "control_materials", text = "")
+        self.layout.prop(props.material_options, "control_materials", text = "")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.active = props.control_materials
+        self.layout.active = props.material_options.control_materials
         self.layout.operator("spritesheet.add_material_set", text = "Add Material Set", icon = "ADD")
 
 class SPRITESHEET_PT_MaterialSetPanel():
@@ -334,7 +420,7 @@ class SPRITESHEET_PT_MaterialSetPanel():
     def poll(cls, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        return cls.index < len(props.material_sets)
+        return cls.index < len(props.material_options.material_sets)
 
     @classmethod
     def create_sub_panel(cls, index):
@@ -342,17 +428,17 @@ class SPRITESHEET_PT_MaterialSetPanel():
 
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        material_set = props.material_sets[self.index]
+        material_set = props.material_options.material_sets[self.index]
 
-        self.layout.enabled = props.control_materials
+        self.layout.enabled = props.material_options.control_materials
         self.layout.use_property_split = True
         self.layout.prop(material_set, "name", text = f"Material Set {self.index + 1}")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
-        material_set = props.material_sets[self.index]
+        material_set = props.material_options.material_sets[self.index]
 
-        self.layout.enabled = props.control_materials
+        self.layout.enabled = props.material_options.control_materials
 
         row = self.layout.row(align = True)
         row.operator("spritesheet.remove_material_set", text = "Remove Set", icon = "REMOVE").index = self.index
@@ -382,41 +468,29 @@ class SPRITESHEET_PT_MaterialSetPanel():
         move_down_op[1]["operation"] = "move_target_down"
 
         self.layout.separator()
-        self.layout.separator()
 
-        # Header row for list; for some reason centering the two columns makes them line up very well
-        row = self.layout.row()
-        row.scale_y = 0.1
-
-        col = row.column()
-        col.alignment = "CENTER"
-        col.label(text = "Target")
-
-        col = row.column()
-        col.alignment = "CENTER"
-        col.label(text = "Material")
-
-        self.template_list(self.layout,
-                            "SPRITESHEET_UL_RenderTargetMaterialPropertyList", # Class name
-                            "", # List ID (blank to generate)
-                            material_set, # List items property source
-                            "materials", # List items property name
-                            material_set, # List index property source
-                            "selected_material_index", # List index property name
-                            min_rows = 4,
-                            add_op = add_op,
-                            remove_op = remove_op,
-                            reorder_up_op = move_up_op,
-                            reorder_down_op = move_down_op
+        list_col = self.template_list(self.layout,
+                                      "SPRITESHEET_UL_MaterialSetTargetPropertyList", # Class name
+                                      "", # List ID (blank to generate)
+                                      material_set, # List items property source
+                                      "materials", # List items property name
+                                      material_set, # List index property source
+                                      "selected_material_index", # List index property name
+                                      min_rows = 4,
+                                      header_labels = ["Target", "Material"],
+                                      add_op = add_op,
+                                      remove_op = remove_op,
+                                      reorder_up_op = move_up_op,
+                                      reorder_down_op = move_down_op
         )
 
         prop = material_set.materials[material_set.selected_material_index]
 
-        self.layout.separator()
-        self.layout.prop_search(prop, "target", bpy.data, "objects", text = "Target Object", icon = "OBJECT_DATA")
+        list_col.separator()
+        list_col.prop_search(prop, "target", bpy.data, "objects", text = "Target Object", icon = "OBJECT_DATA")
 
         if material_set.mode == "individual":
-            self.layout.prop_search(prop, "material", bpy.data, "materials", text = "Material", icon = "MATERIAL")
+            list_col.prop_search(prop, "material", bpy.data, "materials", text = "Material", icon = "MATERIAL")
 
 class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_outputproperties"
@@ -438,11 +512,11 @@ class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
         col = self.layout.column(heading = "Separate Files by", align = True)
 
         sub = col.row()
-        sub.enabled = props.control_animations
+        sub.enabled = props.animation_options.control_animations
         sub.prop(props, "separate_files_per_animation", text = "Animation Set")
 
         sub = col.row()
-        sub.enabled = props.control_rotation
+        sub.enabled = props.rotation_options.control_rotation
         sub.prop(props, "separate_files_per_rotation", text = "Rotation")
 
         # Files are always separated by material set; this can't be changed
@@ -457,44 +531,44 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.prop(props, "control_rotation", text = "")
+        self.layout.prop(props.rotation_options, "control_rotation", text = "")
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self.layout.active = props.control_rotation
-        self.layout.prop(props, "num_rotations")
+        add_op = "spritesheet.add_rotation_target"
 
-        if 360 % props.num_rotations != 0:
+        remove_op = ("spritesheet.remove_rotation_target", {
+            "index": props.rotation_options.selected_target_index
+        })
+
+        move_up_op = ("spritesheet.move_rotation_target_up", {
+            "index": props.rotation_options.selected_target_index
+        })
+
+        move_down_op = ("spritesheet.move_rotation_target_down", {
+            "index": props.rotation_options.selected_target_index
+        })
+
+        self.layout.active = props.rotation_options.control_rotation
+        self.layout.prop(props.rotation_options, "num_rotations")
+
+        if 360 % props.rotation_options.num_rotations != 0:
             self.message_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.", icon = "ERROR")
 
-        self.template_list(self.layout,
-                    "SPRITESHEET_UL_RotationRootPropertyList", # Class name
-                    "spritesheet_RotationOptionsPanel_rotation_root_list", # List ID (blank to generate)
-                    props, # List items property source
-                    "render_targets", # List items property name
-                    props, # List index property source
-                    "selected_rotation_root_index", # List index property name
-        )
-
-class SPRITESHEET_PT_RenderTargetsPanel(BaseAddonPanel, bpy.types.Panel):
-    bl_idname = "SPRITESHEET_PT_rendertargets"
-    bl_label = "Render Targets"
-    bl_options = set() # override parent's DEFAULT_CLOSED
-
-    def draw(self, context):
-        props = context.scene.SpritesheetPropertyGroup
+        self.layout.separator()
 
         self.template_list(self.layout,
-                           "SPRITESHEET_UL_RenderTargetPropertyList", # Class name
-                           "spritesheet_RenderTargetsPanel_target_objects_list", # List ID (blank to generate)
-                           props, # List items property source
-                           "render_targets", # List items property name
-                           props, # List index property source
-                           "selected_render_target_index", # List index property name,
+                           "SPRITESHEET_UL_RotationTargetPropertyList", # Class name
+                           "spritesheet_RotationOptionsPanel_rotation_root_list", # List ID (blank to generate)
+                           props.rotation_options, # List items property source
+                           "targets", # List items property name
+                           props.rotation_options, # List index property source
+                           "selected_target_index", # List index property name,
                            min_rows = 4,
-                           add_op = "spritesheet.add_render_target",
-                           remove_op = "spritesheet.remove_render_target",
-                           reorder_up_op = "spritesheet.move_render_target_up",
-                           reorder_down_op = "spritesheet.move_render_target_down"
+                           header_labels = ["Each object selected here will be rotated during rendering."],
+                           add_op = add_op,
+                           remove_op = remove_op,
+                           reorder_up_op = move_up_op,
+                           reorder_down_op = move_down_op
         )

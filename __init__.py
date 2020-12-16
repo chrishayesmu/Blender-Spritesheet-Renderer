@@ -7,6 +7,9 @@ import os
 import sys
 from typing import Any, Callable, List, Type, Union
 
+# Disable undefined-variable because our module imports are dynamic
+#pylint: disable=undefined-variable
+
 bl_info = {
     "name": "Spritesheet Renderer",
     "description": "Add-on automating the process of rendering a 3D model as a spritesheet.",
@@ -24,44 +27,46 @@ ADDON_DIR = os.path.dirname(os.path.realpath(__file__))
 if not ADDON_DIR in sys.path:
     sys.path.append(ADDON_DIR)
 
-import operators
-importlib.reload(operators)
+# Pretty hacky here: we define all the modules as strings and load them dynamically so that we can easily reload them multiple times
+# Otherwise we have to load and reload them in dependency order and frequently we find our changes not taking effect during development
+module_defs = [
+    "operators",
+    "render_operator",
+    "utils",
+    "preferences",
+    "property_groups",
+    "ui_lists",
+    "ui_panels",
+    ("util", ["Bounds", "Camera", "FileSystemUtil", "ImageMagick", "Register", "SceneSnapshot", "StringUtil", "TerminalOutput", "UIUtil"])
+]
 
-import render_operator
-importlib.reload(render_operator)
+_locals = locals()
+_modules = []
+for module_def in module_defs:
+    if isinstance(module_def, str):
+        module = importlib.import_module(module_def)
+        importlib.reload(module)
 
-import preferences
-importlib.reload(preferences)
+        _locals[module_def] = module
+        _modules.append(module)
+    elif isinstance(module_def, tuple):
+        module_name = module_def[0]
+        submods = module_def[1]
 
-import property_groups
-importlib.reload(property_groups)
+        # Don't add the parent module into locals, only submodules
+        root_module = importlib.import_module(module_name)
+        importlib.reload(root_module)
 
-import ui_lists
-importlib.reload(ui_lists)
-import ui_panels
-importlib.reload(ui_panels)
+        for submod_name in submods:
+            submodule = getattr(root_module, submod_name)
+            importlib.reload(submodule)
 
-from util import Bounds
-importlib.reload(Bounds)
-from util import Camera
-importlib.reload(Camera)
-from util import FileSystemUtil
-importlib.reload(FileSystemUtil)
-from util import ImageMagick
-importlib.reload(ImageMagick)
-from util import Register
-importlib.reload(Register)
-from util import SceneSnapshot
-importlib.reload(SceneSnapshot)
-from util import StringUtil
-importlib.reload(StringUtil)
-from util import TerminalOutput
-importlib.reload(TerminalOutput)
-from util import UIUtil
-importlib.reload(UIUtil)
+            _locals[submod_name] = submodule
+            _modules.append(submodule)
 
-import utils
-importlib.reload(utils)
+# Reload everything again just to be sure the latest changes are picked up
+for mod in _modules:
+    importlib.reload(mod)
 
 # This operator is in the main file so it has the correct module path
 class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
@@ -79,7 +84,7 @@ def check_animation_state():
     if not bpy.context.screen.is_animation_playing:
         props = bpy.context.scene.SpritesheetPropertyGroup
 
-        for animation_set in props.animation_sets:
+        for animation_set in props.animation_options.animation_sets:
             animation_set.is_previewing = False
 
     return 1.0 # check every second for responsiveness, since this is cheap
@@ -94,30 +99,33 @@ def initialize_collections(_unused: None):
     """Initializes certain CollectionProperty objects that otherwise would be empty."""
     props = bpy.context.scene.SpritesheetPropertyGroup
 
-    if len(props.render_targets) == 0:
-        bpy.ops.spritesheet.add_render_target()
+    if len(props.camera_options.targets) == 0:
+        props.camera_options.targets.add()
+
+    if len(props.rotation_options.targets) == 0:
+        props.rotation_options.targets.add()
 
     ### Initialize animation sets
-    if len(props.animation_sets) == 0:
+    if len(props.animation_options.animation_sets) == 0:
         # spritesheet.add_animation_set's poll method requires control_animations to be true, so temporarily set it
-        control_animations = props.control_animations
-        props.control_animations = True
+        control_animations = props.animation_options.control_animations
+        props.animation_options.control_animations = True
         bpy.ops.spritesheet.add_animation_set()
-        props.control_animations = control_animations
+        props.animation_options.control_animations = control_animations
 
-    for i in range(0, len(props.animation_sets)):
+    for i in range(0, len(props.animation_options.animation_sets)):
         ui_panels.SPRITESHEET_PT_AnimationSetPanel.create_sub_panel(i)
 
     ### Initialize material sets
 
-    if len(props.material_sets) == 0:
+    if len(props.material_options.material_sets) == 0:
         # spritesheet.add_material_set's poll method requires control_materials to be true, so temporarily set it
-        control_materials = props.control_materials
-        props.control_materials = True
+        control_materials = props.material_options.control_materials
+        props.material_options.control_materials = True
         bpy.ops.spritesheet.add_material_set()
-        props.control_materials = control_materials
+        props.material_options.control_materials = control_materials
 
-    for i in range(0, len(props.material_sets)):
+    for i in range(0, len(props.material_options.material_sets)):
         ui_panels.SPRITESHEET_PT_MaterialSetPanel.create_sub_panel(i)
 
 @persistent
@@ -134,12 +142,17 @@ def reset_reporting_props(_unused: None):
 
 classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.types.Operator]]] = [
     # Property groups
-    property_groups.AnimationActionPropertyGroup,
+    property_groups.AnimationSetTargetPropertyGroup,
     property_groups.AnimationSetPropertyGroup,
-    property_groups.RenderTargetMaterialPropertyGroup,
+    property_groups.AnimationOptionsPropertyGroup,
+    property_groups.CameraTargetPropertyGroup,
+    property_groups.CameraOptionsPropertyGroup,
+    property_groups.MaterialSetTargetPropertyGroup,
     property_groups.MaterialSetPropertyGroup,
-    property_groups.RenderTargetPropertyGroup,
+    property_groups.MaterialOptionsPropertyGroup,
     property_groups.ReportingPropertyGroup,
+    property_groups.RotationTargetPropertyGroup,
+    property_groups.RotationOptionsPropertyGroup,
     property_groups.SpritesheetPropertyGroup,
 
     preferences.SpritesheetAddonPreferences,
@@ -147,37 +160,40 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     # Operators
     SPRITESHEET_OT_ShowAddonPrefsOperator,
     operators.SPRITESHEET_OT_AddAnimationSetOperator,
+    operators.SPRITESHEET_OT_AddCameraTargetOperator,
     operators.SPRITESHEET_OT_AddMaterialSetOperator,
-    operators.SPRITESHEET_OT_AddRenderTargetOperator,
+    operators.SPRITESHEET_OT_AddRotationTargetOperator,
     operators.SPRITESHEET_OT_AssignMaterialSetOperator,
     operators.SPRITESHEET_OT_ConfigureRenderCameraOperator,
     operators.SPRITESHEET_OT_LocateImageMagickOperator,
     operators.SPRITESHEET_OT_ModifyAnimationSetOperator,
     operators.SPRITESHEET_OT_ModifyMaterialSetOperator,
-    operators.SPRITESHEET_OT_MoveRenderTargetUpOperator,
-    operators.SPRITESHEET_OT_MoveRenderTargetDownOperator,
+    operators.SPRITESHEET_OT_MoveCameraTargetDownOperator,
+    operators.SPRITESHEET_OT_MoveCameraTargetUpOperator,
+    operators.SPRITESHEET_OT_MoveRotationTargetDownOperator,
+    operators.SPRITESHEET_OT_MoveRotationTargetUpOperator,
     operators.SPRITESHEET_OT_OpenDirectoryOperator,
     operators.SPRITESHEET_OT_PlayAnimationSetOperator,
     operators.SPRITESHEET_OT_RemoveAnimationSetOperator,
+    operators.SPRITESHEET_OT_RemoveCameraTargetOperator,
     operators.SPRITESHEET_OT_RemoveMaterialSetOperator,
-    operators.SPRITESHEET_OT_RemoveRenderTargetOperator,
+    operators.SPRITESHEET_OT_RemoveRotationTargetOperator,
 
     render_operator.SPRITESHEET_OT_RenderSpritesheetOperator,
 
     # UI property lists
     ui_lists.SPRITESHEET_UL_AnimationActionPropertyList,
-    ui_lists.SPRITESHEET_UL_RenderTargetMaterialPropertyList,
-    ui_lists.SPRITESHEET_UL_RenderTargetPropertyList,
-    ui_lists.SPRITESHEET_UL_RotationRootPropertyList,
+    ui_lists.SPRITESHEET_UL_CameraTargetPropertyList,
+    ui_lists.SPRITESHEET_UL_MaterialSetTargetPropertyList,
+    ui_lists.SPRITESHEET_UL_RotationTargetPropertyList,
 
     # UI panels
     ui_panels.SPRITESHEET_PT_AddonPanel,
-    ui_panels.SPRITESHEET_PT_RenderTargetsPanel,
+    ui_panels.SPRITESHEET_PT_OutputPropertiesPanel,
     ui_panels.SPRITESHEET_PT_AnimationsPanel,
     ui_panels.SPRITESHEET_PT_CameraPanel,
     ui_panels.SPRITESHEET_PT_MaterialsPanel,
     ui_panels.SPRITESHEET_PT_RotationOptionsPanel,
-    ui_panels.SPRITESHEET_PT_OutputPropertiesPanel,
     ui_panels.SPRITESHEET_PT_JobManagementPanel
 ]
 

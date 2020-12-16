@@ -8,9 +8,12 @@ def format_number(val: Union[float, Tuple, Vector], precision: int = 3) -> Union
 
     return round(val, precision)
 
-def join_with_commas(elements: List[str], separator: str = ", ") -> str:
+def join_with_commas(elements: List[str], separator: str = ", ", quote_elements: bool = False) -> str:
     if len(elements) == 0:
         raise ValueError("argument contains no elements")
+
+    if quote_elements:
+        elements = ['"' + e + '"' for e in elements]
 
     if len(elements) == 1:
         return elements[0]

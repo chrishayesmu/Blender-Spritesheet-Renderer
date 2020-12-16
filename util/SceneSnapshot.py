@@ -12,16 +12,16 @@ class SceneSnapshot:
 
         self._frame: int = scene.frame_current
 
-        if props.control_camera:
+        if props.camera_options.control_camera:
             self._snapshot_camera(context)
 
-        if props.control_rotation:
+        if props.rotation_options.control_rotation:
             self._snapshot_rotations(context)
 
-        if props.control_animations:
+        if props.animation_options.control_animations:
             self._snapshot_actions(context)
 
-        if props.control_materials:
+        if props.material_options.control_materials:
             self._snapshot_materials(context)
 
     def restore_from_snapshot(self, context):
@@ -30,16 +30,16 @@ class SceneSnapshot:
 
         scene.frame_set(self._frame)
 
-        if props.control_camera:
+        if props.camera_options.control_camera:
             self._restore_camera(context)
 
-        if props.control_rotation:
+        if props.rotation_options.control_rotation:
             self._restore_rotations()
 
-        if props.control_animations:
+        if props.animation_options.control_animations:
             self._restore_actions()
 
-        if props.control_materials:
+        if props.material_options.control_materials:
             self._restore_materials()
 
     def _restore_actions(self):
@@ -49,8 +49,8 @@ class SceneSnapshot:
     def _restore_camera(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        props.render_camera_obj.location = self._camera_location
-        props.render_camera.ortho_scale = self._camera_ortho_scale
+        props.camera_options.render_camera_obj.location = self._camera_location
+        props.camera_options.render_camera.ortho_scale = self._camera_ortho_scale
 
     def _restore_materials(self):
         for obj, material in self._materials.items():
@@ -65,24 +65,25 @@ class SceneSnapshot:
 
         self._actions: Dict[bpy.types.Object, bpy.types.Action] = {}
 
-        for animation_set in props.animation_sets:
+        for animation_set in props.animation_options.animation_sets:
             objects = [a.target for a in animation_set.actions]
 
             for obj in objects:
+                obj.animation_data_create()
                 self._actions[obj] = obj.animation_data.action
 
     def _snapshot_camera(self, context: bpy.types.Context):
         props = context.scene.SpritesheetPropertyGroup
 
-        self._camera_location = Vector(props.render_camera_obj.location)
-        self._camera_ortho_scale = props.render_camera.ortho_scale
+        self._camera_location = Vector(props.camera_options.render_camera_obj.location)
+        self._camera_ortho_scale = props.camera_options.render_camera.ortho_scale
 
     def _snapshot_materials(self, context: bpy.types.Context):
         props = context.scene.SpritesheetPropertyGroup
 
         self._materials: Dict[bpy.types.Object, bpy.types.Material] = {}
 
-        for material_set in props.material_sets:
+        for material_set in props.material_options.material_sets:
             for prop in material_set.materials:
                 self._materials[prop.target] = prop.target.material_slots[0].material if len(prop.target.material_slots) > 0 else None
 
@@ -91,6 +92,5 @@ class SceneSnapshot:
 
         self._rotations: Dict[bpy.types.Object, Vector] = {}
 
-        for target in props.render_targets:
-            obj = target.rotation_root if target.rotation_root else target.mesh_object
-            self._rotations[obj] = Vector(obj.rotation_euler)
+        for target in props.rotation_options.targets:
+            self._rotations[target.target] = Vector(target.target.rotation_euler)

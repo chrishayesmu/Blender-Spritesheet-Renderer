@@ -17,10 +17,10 @@ def _get_camera_control_mode_options(self, context: bpy.types.Context):
         ("move_each_frame", "Fit Each Frame", "The camera will be adjusted before every render frame to fit the Target Object. Note that this will prevent the appearance of movement in the spritesheet.", 1)
     ]
 
-    if props.control_animations:
+    if props.animation_options.control_animations:
         items.append(("move_each_animation", "Fit Each Animation", "The camera will be adjusted at the start of each animation, so that the entire animation is rendered without subsequently moving the camera.", 2))
 
-    if props.control_rotation:
+    if props.rotation_options.control_rotation:
         items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time the Target Object is rotated, so that all frames for the rotation (including animations if enabled) " +
                                                                  "are rendered without subsequently moving the camera.", 3))
 
@@ -44,10 +44,10 @@ def _get_camera_control_mode(self) -> int:
 def _set_camera_control_mode(self, value):
     self["camera_control_mode"] = value
 
-class AnimationActionPropertyGroup(bpy.types.PropertyGroup):
+class AnimationSetTargetPropertyGroup(bpy.types.PropertyGroup):
     action: bpy.props.PointerProperty(
         name = "Action",
-        description = "Which action to use for this Render Target during this animation set. If unset, the Render Target will be unanimated",
+        description = "Which action to use for the target object during this animation set",
         type = bpy.types.Action
     )
 
@@ -94,13 +94,13 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         self["name"] = value
 
     # There should be one action per render target; this is handled elsewhere
-    actions: bpy.props.CollectionProperty(type = AnimationActionPropertyGroup)
+    actions: bpy.props.CollectionProperty(type = AnimationSetTargetPropertyGroup)
 
     is_previewing: bpy.props.BoolProperty(default = False)
 
     name: bpy.props.StringProperty(
         name = "Animation Set Name",
-        description = "TBD",
+        description = "The name of the set is shown in the Blender UI, as well as being exported to JSON for other tools to consume. Must be unique within this .blend file",
         get = _get_name,
         set = _set_name
     )
@@ -112,10 +112,7 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         min = 1
     )
 
-    selected_action_index: bpy.props.IntProperty(
-        name = "", # hide name in tooltip
-        #get = lambda self: -1
-    )
+    selected_action_index: bpy.props.IntProperty(name = "", min = 0)
 
     def assign_actions_to_targets(self):
         is_valid, err = self.is_valid()
@@ -150,7 +147,7 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
 
         return frame_data(frame_min, frame_max, num_frames)
 
-    def get_selected_actions(self) -> List[AnimationActionPropertyGroup]:
+    def get_selected_actions(self) -> List[AnimationSetTargetPropertyGroup]:
         return list([a for a in self.actions if a.action is not None])
 
     def is_valid(self) -> Tuple[bool, Optional[str]]:
@@ -161,15 +158,92 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
             if not prop.action:
                 return (False, f"Action in row {index + 1} is not set.")
 
+        # Check that the same target isn't repeated (same action is okay)
+        repeats = utils.repeated_entries(a.target for a in self.actions)
+        if len(repeats) > 0:
+            repeat_names = list(map(lambda o: o.name, repeats))
+            return (False, f"Each object may only appear as a target once per animation set. Repeated targets: {StringUtil.join_with_commas(repeat_names, quote_elements = True)}")
+
+
+        unique_targets = { a.target.name for a in self.actions }
+
+        if len(unique_targets) != len(self.actions):
+            return (False, "Each object may only appear as a target once per animation set.")
+
         return (True, None)
 
-class RenderTargetMaterialPropertyGroup(bpy.types.PropertyGroup):
+class AnimationOptionsPropertyGroup(bpy.types.PropertyGroup):
+    animation_sets: bpy.props.CollectionProperty(type = AnimationSetPropertyGroup)
+
+    control_animations: bpy.props.BoolProperty(
+        name = "Control Animations",
+        description = "If true, the Render Targets will be animated while rendering, with one sprite being emitted per frame of animation",
+        default = False
+    )
+
+class CameraTargetPropertyGroup(bpy.types.PropertyGroup):
+    target: bpy.props.PointerProperty(type = bpy.types.Object)
+
+class CameraOptionsPropertyGroup(bpy.types.PropertyGroup):
+    def _on_render_camera_updated(self, _context):
+        if self.render_camera is None:
+            self.render_camera_obj = None
+        else:
+            self.render_camera_obj = utils.find_object_data_for_camera(self.render_camera)
+
+    control_camera: bpy.props.BoolProperty(
+        name = "Control Camera",
+        description = "If true, the Render Camera will be moved and adjusted to best fit all targets in view",
+        default = False
+    )
+
+    camera_control_mode: bpy.props.EnumProperty(
+        name = "Control Style",
+        description = "How to control the Render Camera",
+        items = _get_camera_control_mode_options,
+        get = _get_camera_control_mode,
+        set = _set_camera_control_mode
+    )
+
+    render_camera: bpy.props.PointerProperty(
+        name = "Render Camera",
+        description = "The camera to control during rendering",
+        type = bpy.types.Object,
+        update = _on_render_camera_updated
+    )
+
+    render_camera_obj: bpy.props.PointerProperty(type = bpy.types.Object) # Automatically set; not for users
+
+    selected_target_index: bpy.props.IntProperty(min = 0, name = "")
+
+    targets: bpy.props.CollectionProperty(
+        name = "Camera Targets",
+        description = "When the camera is moved, it will tightly frame all of the objects in this list",
+        type = CameraTargetPropertyGroup
+    )
+
+    def is_valid(self) -> Tuple[bool, Optional[str]]:
+        if not self.control_camera:
+            return (True, None)
+
+        if not self.render_camera:
+            return (False, "Render Camera is not set.")
+
+        if self.render_camera.type != "ORTHO":
+            return (False, "'Control Camera' is currently only supported for orthographic cameras.")
+
+        if any(item.target is None for item in self.targets):
+            return (False, "Not all object entries have been set. Select objects, or remove the unused entries.")
+
+        return (True, None)
+
+class MaterialSetTargetPropertyGroup(bpy.types.PropertyGroup):
     # All of these types have a materials property
     # Keep in sync with description of "target" property
     _valid_target_types = { "CURVE", "GPENCIL", "MESH", "META", "VOLUME" }
 
     def _is_obj_valid_target(self, obj):
-        return obj.type in RenderTargetMaterialPropertyGroup._valid_target_types
+        return obj.type in MaterialSetTargetPropertyGroup._valid_target_types
 
     def _is_mat_valid_for_target(self, mat):
         # Non-grease-pencil materials are valid for everything
@@ -234,7 +308,7 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         set = _set_name
     )
 
-    materials: bpy.props.CollectionProperty(type = RenderTargetMaterialPropertyGroup)
+    materials: bpy.props.CollectionProperty(type = MaterialSetTargetPropertyGroup)
 
     role: bpy.props.EnumProperty(
         name = "Role",
@@ -247,7 +321,7 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         ]
     )
 
-    selected_material_index: bpy.props.IntProperty(name = "")
+    selected_material_index: bpy.props.IntProperty(name = "", min = 0)
 
     shared_material: bpy.props.PointerProperty(
         name = "Shared Material",
@@ -302,6 +376,15 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         assert 0 <= index < len(self.materials)
 
         return self.materials[index].material if self.mode == "individual" else self.shared_material
+
+class MaterialOptionsPropertyGroup(bpy.types.PropertyGroup):
+    material_sets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
+
+    control_materials: bpy.props.BoolProperty(
+        name = "Control Materials",
+        description = "If true, the spritesheet will be rendered once for each material set",
+        default = False
+    )
 
 class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
 
@@ -367,85 +450,50 @@ class ReportingPropertyGroup(bpy.types.PropertyGroup):
         time_per_frame = self.elapsed_time / self.current_frame_num
         return (self.total_num_frames - self.current_frame_num) * time_per_frame
 
-class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
-    """Property group for spritesheet rendering configuration"""
+class RotationTargetPropertyGroup(bpy.types.PropertyGroup):
+    target: bpy.props.PointerProperty(type = bpy.types.Object)
 
-    def _on_render_camera_updated(self, _context):
-        if self.render_camera is None:
-            self.render_camera_obj = None
-        else:
-            self.render_camera_obj = utils.find_object_data_for_camera(self.render_camera)
-
-    #### Animation data
-    animation_sets: bpy.props.CollectionProperty(type = AnimationSetPropertyGroup)
-
-    control_animations: bpy.props.BoolProperty(
-        name = "Control Animations",
-        description = "If true, the Render Targets will be animated while rendering, with one sprite being emitted per frame of animation",
-        default = False
-    )
-
-    ### Materials data
-    material_sets: bpy.props.CollectionProperty(type = MaterialSetPropertyGroup)
-
-    control_materials: bpy.props.BoolProperty(
-        name = "Control Materials",
-        description = "If true, the Render Targets will be rendered once for each material set",
-        default = False
-    )
-
-    ### Camera options
-    control_camera: bpy.props.BoolProperty(
-        name = "Control Camera",
-        description = "If true, the Render Camera will be moved and adjusted to best fit all Render Targets in view",
-        default = False
-    )
-
-    camera_control_mode: bpy.props.EnumProperty(
-        name = "Control Style",
-        description = "How to control the Render Camera",
-        items = _get_camera_control_mode_options,
-        get = _get_camera_control_mode,
-        set = _set_camera_control_mode
-    )
-
-    render_camera: bpy.props.PointerProperty(
-        name = "Render Camera",
-        description = "The camera to control during rendering",
-        type = bpy.types.Object,
-        update = _on_render_camera_updated
-    )
-
-    render_camera_obj: bpy.props.PointerProperty(type = bpy.types.Object) # Automatically set; not for users
-
-    ### Rotation options
+class RotationOptionsPropertyGroup(bpy.types.PropertyGroup):
     control_rotation: bpy.props.BoolProperty(
         name = "Control Rotation",
-        description = "Whether to rotate the Render Target. All targets will be rotated simultaneously, but you may choose an object to rotate each around (such as a parent or armature)"
+        description = "Whether to objects in the scene while rendering. If enabled, the scene will be rendered once per rotation angle"
     )
-
-    # TODO: add a rotation mode option so that you can rotate either a single object (presumably a parent of the rest of them) or each object individually
 
     num_rotations: bpy.props.IntProperty(
         name = "Total Angles",
         description = "How many rotations to perform",
-        default = 8,
+        default = 4,
         min = 2,
-        max = 72 # 5 degrees movement per render should be fine-grained enough for anyone
+        max = 360
     )
 
-    selected_rotation_root_index: bpy.props.IntProperty(
-        get = lambda self: -1
-    )
+    selected_target_index: bpy.props.IntProperty(name = "", min = 0)
 
-    ### Target objects
-    # TODO: add targets in camera and rotations and get rid of render targets completely
-    render_targets: bpy.props.CollectionProperty(
-        name = "Render Targets",
-        type = RenderTargetPropertyGroup
-    )
+    targets: bpy.props.CollectionProperty(type = RotationTargetPropertyGroup)
 
-    selected_render_target_index: bpy.props.IntProperty()
+    def is_valid(self) -> Tuple[bool, Optional[str]]:
+        if not self.control_rotation:
+            return (True, None)
+
+        if len(self.targets) == 0 or any(t.target is None for t in self.targets):
+            return (False, "Not all object entries have been set. Select objects, or remove the unused entries.")
+
+        return (True, None)
+
+    def rotate_objects(self, angle_degrees: int):
+        for target in self.targets:
+            target.target.rotation_euler[2] = math.radians(angle_degrees)
+
+class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
+    """Property group for spritesheet rendering configuration"""
+
+    animation_options: bpy.props.PointerProperty(type = AnimationOptionsPropertyGroup)
+
+    camera_options: bpy.props.PointerProperty(type = CameraOptionsPropertyGroup)
+
+    material_options: bpy.props.PointerProperty(type = MaterialOptionsPropertyGroup)
+
+    rotation_options: bpy.props.PointerProperty(type = RotationOptionsPropertyGroup)
 
     ### Output file properties
     pad_output_to_power_of_two: bpy.props.BoolProperty(
