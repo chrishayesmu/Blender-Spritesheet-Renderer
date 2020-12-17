@@ -33,6 +33,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # For some reason, if an error occurs in this method, Blender won't report it.
         # So the whole thing is wrapped in a try/except block so we can know what happened.
         try:
+            original_reason = cls.renderDisabledReason
+
             validators = [
                 cls._validate_image_magick_install,
                 cls._validate_animation_options,
@@ -41,16 +43,23 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 cls._validate_rotation_options
             ]
 
+            is_valid = True
+            cls.renderDisabledReason = ""
+
             for validator in validators:
                 is_valid, cls.renderDisabledReason = validator(context)
 
                 if not is_valid:
-                    return False
+                    break
 
             # TODO might need to check that we're in object mode
 
-            cls.renderDisabledReason = ""
-            return True
+            if cls.renderDisabledReason != original_reason:
+                # force_redraw_ui calls an operator, which you can't do from within a poll method, so we set it
+                # on a very brief, trigger-once timer
+                bpy.app.timers.register(utils.force_redraw_ui, first_interval = 0.05, persistent = False)
+
+            return is_valid
         except:
             traceback.print_exc()
             return False
@@ -823,7 +832,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._terminal_writer.write(msg, unpersisted_portion = progress_bar + time_string, persist_msg = persist_message)
 
     def _run_render_without_stdout(self, context: bpy.types.Context):
-        """Renders a single frame without printing the norma message to stdout
+        """Renders a single frame without printing the normal message to stdout.
 
         When saving a rendered image, usually Blender outputs a message like 'Saved <filepath> ...', which clogs the output.
         This method renders without that message being printed."""
@@ -835,20 +844,10 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             # Don't report job because this method is always being called inside of another job
             self._optimize_camera(context, report_job = False)
 
-        # Get the original stdout file, close its fd, and open devnull in its place
-        original_stdout = os.dup(1)
-        sys.stdout.flush()
-        os.close(1)
-        os.open(os.devnull, os.O_WRONLY)
-
-        try:
+        with utils.close_stdout():
             bpy.ops.render.render(write_still = True)
-            reporting_props.current_frame_num += 1
-        finally:
-            # Reopen stdout in its original position as fd 1
-            os.close(1)
-            os.dup(original_stdout)
-            os.close(original_stdout)
+
+        reporting_props.current_frame_num += 1
 
     def _run_image_magick(self, props: SpritesheetPropertyGroup, reporting_props: ReportingPropertyGroup, material_set_index: int, animation_set: AnimationSetPropertyGroup,
                           total_num_frames: int, temp_dir_path: str, rotation_angle: int) -> Dict[str, Any]:

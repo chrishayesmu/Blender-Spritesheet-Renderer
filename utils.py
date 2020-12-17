@@ -1,6 +1,7 @@
 import bpy
 import math
 import os
+import sys
 from typing import Any, Iterable, Optional
 
 def blend_file_name(default_value: Optional[str] = None) -> Optional[str]:
@@ -11,6 +12,23 @@ def blend_file_name(default_value: Optional[str] = None) -> Optional[str]:
     base = os.path.basename(bpy.data.filepath)
     filename, _ = os.path.splitext(base)
     return filename
+
+def close_stdout():
+    class StdoutContextManager:
+        def __enter__(self):
+            # Get the original stdout file, close its fd, and open devnull in its place
+            self._original_stdout = os.dup(1)
+            sys.stdout.flush()
+            os.close(1)
+            os.open(os.devnull, os.O_WRONLY)
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            # Close the devnull stdout, duplicate the original (giving it fd 1), and close the duplicate
+            os.close(1)
+            os.dup(self._original_stdout)
+            os.close(self._original_stdout)
+
+    return StdoutContextManager()
 
 def enum_display_name_from_identifier(prop_group: bpy.types.PropertyGroup, prop_name: str, prop_identifier: str) -> str:
     assert hasattr(prop_group, "bl_rna"), "Incorrect item passed for enum_prop"
@@ -45,6 +63,15 @@ def find_object_data_for_mesh(mesh: bpy.types.Mesh) -> bpy.types.Object:
 
     return next(iter(objects_by_mesh[mesh]))
 
+def force_redraw_ui():
+    # Frustratingly, this seems to be the only way to actually get Blender to redraw our panels -
+    # tagging the areas/regions for redraw doesn't do it. So, even though this is bad practice,
+    # we do it so the UI actually reflects what's going on.
+    #
+    # Also, this op prints some timing info to stdout, so we just suppress that too.
+    with close_stdout():
+        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+
 def repeated_entries(iterable: Iterable[Any]) -> Iterable[Any]:
     seen = []
     repeats = []
@@ -58,6 +85,7 @@ def repeated_entries(iterable: Iterable[Any]) -> Iterable[Any]:
     return repeats
 
 def rotate_objects(objects: Iterable[bpy.types.Object], x_rot_degrees: Optional[float] = None, y_rot_degrees: Optional[float] = None, z_rot_degrees: Optional[float] = None):
+    # TODO: move this logic into the RotationOptionsPropertyGroup
     assert not (x_rot_degrees is None and y_rot_degrees is None and z_rot_degrees is None), "No rotation values were passed"
 
     for obj in objects:
@@ -67,3 +95,8 @@ def rotate_objects(objects: Iterable[bpy.types.Object], x_rot_degrees: Optional[
         z_rot: float = math.radians(z_rot_degrees) if z_rot_degrees is not None else obj.rotation_euler[2]
 
         obj.rotation_euler = (x_rot, y_rot, z_rot)
+
+def tag_redraw_area(context: bpy.types.Context, area_type: str):
+    for area in context.window.screen.areas:
+        if area.type == area_type:
+            area.tag_redraw()

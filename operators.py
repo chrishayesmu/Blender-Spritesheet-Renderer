@@ -18,7 +18,7 @@ class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
             return {"CANCELLED"}
 
         props.camera_options.render_camera.type = "ORTHO"
-        return {"FINISHED"}
+        return {'FINISHED'}
 
 class SPRITESHEET_OT_LocateImageMagickOperator(bpy.types.Operator):
     bl_idname = "spritesheet.prefs_locate_imagemagick"
@@ -74,9 +74,7 @@ class SPRITESHEET_OT_AssignMaterialSetOperator(bpy.types.Operator):
 
         material_set.assign_materials_to_targets()
 
-        for area in context.window.screen.areas:
-            if area.type == "VIEW_3D":
-                area.tag_redraw()
+        utils.tag_redraw_area(context, "VIEW_3D")
 
         return {'FINISHED'}
 
