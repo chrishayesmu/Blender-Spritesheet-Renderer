@@ -79,7 +79,7 @@ class SPRITESHEET_OT_AssignMaterialSetOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SPRITESHEET_OT_PlayAnimationSetOperator(bpy.types.Operator):
-    """Play this animation set in the viewport to preview how the animations look together."""
+    """Play this animation set in the viewport to preview how the animations look together"""
     bl_idname = "spritesheet.play_animation_set"
     bl_label = "Play Animation Set"
 
@@ -175,6 +175,7 @@ class SPRITESHEET_OT_RemoveAnimationSetOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SPRITESHEET_OT_ModifyAnimationSetOperator(bpy.types.Operator):
+    # TODO just replace this with add/remove/move operators like the other types
     bl_idname = "spritesheet.modify_animation_set"
     bl_label = "Modify Animation Set"
     bl_options = {'UNDO'}
@@ -384,6 +385,7 @@ class SPRITESHEET_OT_RemoveMaterialSetOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SPRITESHEET_OT_ModifyMaterialSetOperator(bpy.types.Operator):
+    # TODO just replace this with add/remove/move operators like the other types
     bl_idname = "spritesheet.modify_material_set"
     bl_label = "Modify Material Set"
     bl_options = {'UNDO'}

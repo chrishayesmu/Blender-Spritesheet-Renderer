@@ -10,6 +10,9 @@ from util import FileSystemUtil
 from util import StringUtil
 from util import UIUtil
 
+# TODO: it would be nice to update one of these panels to show a preview of how many
+# sprites will be rendered into how many files, based on the current configuration
+
 class BaseAddonPanel:
     """Base class for all of our UI panels with some common functionality."""
     bl_options = {"DEFAULT_CLOSED"}
@@ -286,6 +289,8 @@ class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
+
+        # TODO nice-to-have: preview the render camera's positioning in the viewport, similar to animations/materials
 
         self.layout.active = props.camera_options.control_camera
         self.layout.prop_search(props.camera_options, "render_camera", bpy.data, "cameras")
