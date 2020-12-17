@@ -460,8 +460,8 @@ class RotationOptionsPropertyGroup(bpy.types.PropertyGroup):
     )
 
     num_rotations: bpy.props.IntProperty(
-        name = "Total Angles",
-        description = "How many rotations to perform",
+        name = "Number of Angles",
+        description = "How many different angles to render the scene from",
         default = 4,
         min = 2,
         max = 360
