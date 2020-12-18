@@ -14,14 +14,14 @@ def _get_camera_control_mode_options(self, context: bpy.types.Context):
 
     items = [
         ("move_once", "Fit All Frames", "The camera will be adjusted once before any rendering is done, so that the entire spritesheet is rendered from the same camera perspective.", 0),
-        ("move_each_frame", "Fit Each Frame", "The camera will be adjusted before every render frame to fit the Target Object. Note that this will prevent the appearance of movement in the spritesheet.", 1)
+        ("move_each_frame", "Fit Each Frame", "The camera will be adjusted before every render frame to fit the target objects. Note that this will prevent the appearance of movement in the spritesheet.", 1)
     ]
 
     if props.animation_options.control_animations:
-        items.append(("move_each_animation", "Fit Each Animation", "The camera will be adjusted at the start of each animation, so that the entire animation is rendered without subsequently moving the camera.", 2))
+        items.append(("move_each_animation", "Fit Each Animation Set", "The camera will be adjusted at the start of each animation set, so that the entire animation set is rendered without subsequently moving the camera.", 2))
 
     if props.rotation_options.control_rotation:
-        items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time the Target Object is rotated, so that all frames for the rotation (including animations if enabled) " +
+        items.append(("move_each_rotation", "Fit Each Rotation", "The camera will be adjusted every time objects in the scene are rotated, so that all frames for the rotation (including animations if enabled) " +
                                                                  "are rendered without subsequently moving the camera.", 3))
 
     return items

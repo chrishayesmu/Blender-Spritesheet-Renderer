@@ -474,6 +474,7 @@ class SPRITESHEET_PT_MaterialSetPanel():
 
         self.layout.separator()
 
+        # TODO add dynamic tooltip to this and other lists
         list_col = self.template_list(self.layout,
                                       "SPRITESHEET_UL_MaterialSetTargetPropertyList", # Class name
                                       "", # List ID (blank to generate)

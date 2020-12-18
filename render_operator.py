@@ -463,6 +463,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         material_set = props.material_options.material_sets[material_set_index]
         if include_material_set and material_set is not None:
             # Possible TODO: only include index if necessary (i.e. multiple material sets have the same role). Pretty low priority
+            # TODO why should this be role instead of name?
             output_file_path += "_" + self._format_string_for_filename(material_set.role) + "_" + str(material_set_index)
 
         if props.animation_options.control_animations and props.separate_files_per_animation:
