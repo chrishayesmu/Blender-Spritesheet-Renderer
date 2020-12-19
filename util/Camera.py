@@ -10,6 +10,10 @@ import utils
 # Public methods: same as private but don't return the Bounds object
 ####################################################################################
 
+# FIXME: if an object is hidden in viewport, these methods won't include it for framing,
+# but if it's visible in render then it still shows up in the final output. This should
+# either error or warn the user.
+
 def fit_camera_to_targets(context: bpy.types.Context):
     _select_only_camera_targets(context.scene)
     bpy.ops.view3d.camera_to_view_selected()

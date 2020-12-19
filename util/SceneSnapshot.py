@@ -12,6 +12,8 @@ class SceneSnapshot:
 
         self._frame: int = scene.frame_current
 
+        self._snapshot_object_selections()
+
         if props.camera_options.control_camera:
             self._snapshot_camera(context)
 
@@ -29,6 +31,8 @@ class SceneSnapshot:
         props = scene.SpritesheetPropertyGroup
 
         scene.frame_set(self._frame)
+
+        self._restore_object_selections()
 
         if props.camera_options.control_camera:
             self._restore_camera(context)
@@ -55,6 +59,10 @@ class SceneSnapshot:
     def _restore_materials(self):
         for obj, material in self._materials.items():
             obj.material_slots[0].material = material
+
+    def _restore_object_selections(self):
+        for obj, is_selected in self._object_selections.items():
+            obj.select_set(is_selected)
 
     def _restore_rotations(self):
         for obj, rotation in self._rotations.items():
@@ -86,6 +94,12 @@ class SceneSnapshot:
         for material_set in props.material_options.material_sets:
             for prop in material_set.materials:
                 self._materials[prop.target] = prop.target.material_slots[0].material if len(prop.target.material_slots) > 0 else None
+
+    def _snapshot_object_selections(self):
+        self._object_selections: Dict[bpy.types.Object, bool] = {}
+
+        for obj in bpy.data.objects:
+            self._object_selections[obj] = obj.select_get()
 
     def _snapshot_rotations(self, context: bpy.types.Context):
         props = context.scene.SpritesheetPropertyGroup
