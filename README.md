@@ -13,7 +13,7 @@
 - [Feedback](#feedback)
 - [FAQs](#faqs)
 - [Acknowledgements](#acknowledgements)
-- [Screenshots/samples](#screenshotssamples)
+- [Screenshots/examples](#screenshotsexamples)
 
 # Overview
 
@@ -278,7 +278,7 @@ The output format will differ slightly based on whether animations and/or materi
 
 Inspiration for this project, as well as a good chunk of the initial code, is owed to [theloneplant/blender-spritesheets](https://github.com/theloneplant/blender-spritesheets/).
 
-# Screenshots/samples
+# Screenshots/examples
 
 All screenshots can be found in [the screenshots folder](screenshots/).
 
