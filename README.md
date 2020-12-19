@@ -12,13 +12,8 @@
 - [Caveats](#caveats)
 - [Feedback](#feedback)
 - [FAQs](#faqs)
-		- [Number of sprites](#number-of-sprites)
-		- [Number of files](#number-of-files)
 - [Acknowledgements](#acknowledgements)
 - [Screenshots/samples](#screenshotssamples)
-	- [Addon UI (except Control Materials)](#addon-ui-except-control-materials)
-	- [Control Materials UI](#control-materials-ui)
-	- [Example spritesheet output](#example-spritesheet-output)
 
 # Overview
 
@@ -172,7 +167,7 @@ If you do try out Spritesheet Renderer, feel free to [open an issue](https://git
 <details>
 	<summary>How can I know how many sprites will be output for my settings? How many files will they be in?</summary>
 
-### Number of sprites
+### Number of sprites <!-- omit in toc -->
 
 The number of sprites output depends on 3 pieces of data:
 
@@ -186,7 +181,7 @@ Suppose you set up your scene with 3 animation sets, containing 12, 15, and 20 f
 
 If you're not using any of these features, then the corresponding variable is 1. For example, if you aren't using animation sets or material sets, but you are using 8 rotations, then you will have `1 * 1 * 8 = 8` sprites in the output. At the most extreme, if you have all of the features off, you get only a single sprite in the output - effectively you're just running a normal Blender render process at that point.
 
-### Number of files
+### Number of files <!-- omit in toc -->
 
 The number of files depends on the options you've selected in Output Properties. You can choose to separate different animation sets and different rotation angles into their own files; material sets will always be split up.
 
@@ -287,7 +282,7 @@ Inspiration for this project, as well as a good chunk of the initial code, is ow
 
 All screenshots can be found in [the screenshots folder](screenshots/).
 
-## Addon UI (except Control Materials)
+## Addon UI (except Control Materials) <!-- omit in toc -->
 
 <details>
 	<summary>Expand</summary>
@@ -296,7 +291,7 @@ All screenshots can be found in [the screenshots folder](screenshots/).
 
 </details>
 
-## Control Materials UI
+## Control Materials UI <!-- omit in toc -->
 
 <details>
 	<summary>Expand</summary>
@@ -305,7 +300,7 @@ All screenshots can be found in [the screenshots folder](screenshots/).
 
 </details>
 
-## Example spritesheet output
+## Example spritesheet output <!-- omit in toc -->
 
 <details>
 	<summary>Expand</summary>
