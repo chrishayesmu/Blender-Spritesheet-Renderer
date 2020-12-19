@@ -227,6 +227,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 self._terminal_writer.write("\n\nException occurred in bpy.ops.spritesheet.render:\n", bypass_output_suppression = True)
                 self._terminal_writer.write(self._exception_trace, bypass_output_suppression = True)
 
+        # Any time the render job ends, make sure the UI updates right away
+        bpy.app.timers.register(utils.force_redraw_ui, first_interval = 0.05, persistent = False)
+
     def _generate_frames_and_spritesheets(self, context: bpy.types.Context) -> Generator[None, None, None]:
         #pylint: disable=too-many-branches
         #pylint: disable=too-many-statements
