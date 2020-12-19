@@ -14,7 +14,7 @@ bl_info = {
     "name": "Spritesheet Renderer",
     "description": "Add-on automating the process of rendering a 3D model as a spritesheet.",
     "author": "Chris Hayes",
-    "version": (2, 0, 0),
+    "version": (2, 1, 0),
     "blender": (2, 90, 0),
     "location": "View3D > UI > Spritesheet",
     "support": "COMMUNITY",
