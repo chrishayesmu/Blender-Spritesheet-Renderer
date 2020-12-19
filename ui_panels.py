@@ -53,7 +53,7 @@ class BaseAddonPanel:
 
         return box
 
-    def template_list(self, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, item_dyntip_propname: str = "",
+    def template_list(self, context: bpy.types.Context, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, item_dyntip_propname: str = "",
                       min_rows: int = 1, header_labels: List[str] = None,
                       add_op: Optional[Union[str, Tuple[str, Dict[str, Any]]]] = None,
                       remove_op: Optional[Union[str, Tuple[str, Dict[str, Any]]]] = None,
@@ -75,20 +75,15 @@ class BaseAddonPanel:
         # Header row above the list: these settings make them roughly aligned with the columns in the list
         if show_header_row:
             sub = list_col.row()
-            sub.scale_y = header_row_scale
 
             for label in header_labels:
                 text: str
-                icon: str
 
                 if isinstance(label, str):
                     text = label
-                    icon = "NONE"
                 elif isinstance(label, tuple):
                     if len(label) == 2:
-                        text, icon = label
-                    elif len(label) == 3:
-                        text, icon, split_factor = label
+                        text, split_factor = label
                         sub = sub.split(factor = split_factor)
                     else:
                         raise ValueError(f"Don't know how to process header label {label}")
@@ -96,7 +91,7 @@ class BaseAddonPanel:
                     raise ValueError(f"Don't know how to process header label {label}")
 
                 col = sub.column()
-                col.label(text = text, icon = icon)
+                self.wrapped_label(context, col, text)
 
         # Mostly passthrough but with a couple of standardized params
         list_col.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, item_dyntip_propname = item_dyntip_propname, rows = min(5, max(min_rows, len(list_obj))), maxrows = 5)
@@ -126,14 +121,12 @@ class BaseAddonPanel:
 
         return list_col
 
-    def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = ""):
+    def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str):
         lines = UIUtil.wrap_text_in_region(context, text)
-
-        if icon and len(lines) > 1:
-            pass
 
         col = layout.column(align = True)
         col.scale_y = .7 # bring text lines a little closer together
+
         for line in lines:
             col.label(text = line)
 
@@ -247,7 +240,8 @@ class SPRITESHEET_PT_AnimationSetPanel():
 
         self.layout.separator()
 
-        list_col = self.template_list(self.layout,
+        list_col = self.template_list(context,
+                                      self.layout,
                                       "SPRITESHEET_UL_AnimationActionPropertyList", # Class name
                                       "", # List ID (blank to generate)
                                       animation_set, # List items property source
@@ -255,7 +249,7 @@ class SPRITESHEET_PT_AnimationSetPanel():
                                       animation_set, # List index property source
                                       "selected_action_index", # List index property name
                                       min_rows = 4,
-                                      header_labels = [ " Target", ("Action", "NONE", 0.685), "Frame Range"],
+                                      header_labels = [ " Target", ("Action", 0.685), "Frame Range"],
                                       add_op = add_op,
                                       remove_op = remove_op,
                                       reorder_up_op = move_up_op,
@@ -312,7 +306,8 @@ class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
             "index": props.camera_options.selected_target_index
         })
 
-        self.template_list(self.layout,
+        self.template_list(context,
+                           self.layout,
                            "SPRITESHEET_UL_CameraTargetPropertyList", # Class name
                            "spritesheet_CameraOptionsPanel_camera_target_list", # List ID (blank to generate)
                            props.camera_options, # List items property source
@@ -320,7 +315,7 @@ class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
                            props.camera_options, # List index property source
                            "selected_target_index", # List index property name,
                            min_rows = 4,
-                           header_labels = ["Each object selected here will be framed by the camera."],
+                           header_labels = ["Each object selected here (and their children) will be framed by the camera."],
                            add_op = add_op,
                            remove_op = remove_op,
                            reorder_up_op = move_up_op,
@@ -475,7 +470,8 @@ class SPRITESHEET_PT_MaterialSetPanel():
         self.layout.separator()
 
         # TODO add dynamic tooltip to this and other lists
-        list_col = self.template_list(self.layout,
+        list_col = self.template_list(context,
+                                      self.layout,
                                       "SPRITESHEET_UL_MaterialSetTargetPropertyList", # Class name
                                       "", # List ID (blank to generate)
                                       material_set, # List items property source
@@ -564,7 +560,8 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
 
         self.layout.separator()
 
-        self.template_list(self.layout,
+        self.template_list(context,
+                           self.layout,
                            "SPRITESHEET_UL_RotationTargetPropertyList", # Class name
                            "spritesheet_RotationOptionsPanel_rotation_root_list", # List ID (blank to generate)
                            props.rotation_options, # List items property source

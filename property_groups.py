@@ -182,7 +182,11 @@ class AnimationOptionsPropertyGroup(bpy.types.PropertyGroup):
     )
 
 class CameraTargetPropertyGroup(bpy.types.PropertyGroup):
-    target: bpy.props.PointerProperty(type = bpy.types.Object)
+    target: bpy.props.PointerProperty(
+        name = "Target",
+        description = "This object, and all of its children, will be framed automatically by the camera",
+        type = bpy.types.Object
+    )
 
 class CameraOptionsPropertyGroup(bpy.types.PropertyGroup):
     def _on_render_camera_updated(self, _context):

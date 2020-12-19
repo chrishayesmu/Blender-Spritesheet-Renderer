@@ -127,6 +127,16 @@ def _get_camera_image_plane(camera: bpy.types.Camera, camera_obj: bpy.types.Obje
 def _select_only_camera_targets(scene: bpy.types.Scene):
     props = scene.SpritesheetPropertyGroup
 
-    for obj in scene.objects:
-        is_target = any(target is obj for target in props.camera_options.targets)
-        obj.select_set(is_target)
+    # Just deselect everything to start with
+    bpy.ops.object.select_all(action = 'DESELECT')
+
+    objs = [t.target for t in props.camera_options.targets]
+
+    # Recursively add each target's children until the entire hierarchy is selected
+    while len(objs) > 0:
+        obj = objs.pop()
+        obj.select_set(True)
+
+        unselected_children = [o for o in obj.children if not o.select_get()]
+
+        objs.extend(unselected_children)
