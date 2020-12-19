@@ -16,8 +16,8 @@
 		- [Number of files](#number-of-files)
 - [Acknowledgements](#acknowledgements)
 - [Screenshots/samples](#screenshotssamples)
-	- [Valid configuration](#valid-configuration)
-	- [Invalid configuration: no animations in file](#invalid-configuration-no-animations-in-file)
+	- [Addon UI (except Control Materials)](#addon-ui-except-control-materials)
+	- [Control Materials UI](#control-materials-ui)
 	- [Example spritesheet output](#example-spritesheet-output)
 
 # Overview
@@ -33,11 +33,9 @@ Currently Spritesheet Renderer is only tested on Blender 2.9, though it may work
 * Rotate scene objects automatically, letting you capture the object from multiple perspectives with minimal effort.
 * Automatically adjust the camera to frame your scene as closely as possible, with multiple adjustment modes to best suit the situation (e.g. framing the target so that the entire animation occurs from one perspective, giving the spritesheet frames the appearance of movement).
 * Configure the individual sprite size and how spritesheet files should be split up (e.g. by animation), as well as whether the output files should be padded to a power-of-two size.
-* Interruptible: press `ESC` to cancel a render job at any time (may take a few seconds to take effect).
 * Outputs a JSON file describing the spritesheet, including the individual frame dimensions and animation data, well suited for automatically importing the spritesheet into other programs.
 * Contains buttons to preview parts of your configuration in the 3D viewport, making it easy to tell what you're going to get when you render.
 * Settings are stored in the .blend file, so you can easily re-render if you've made changes.
-* Addon preferences let you move the entire addon UI into the Render Properties panel if it's just too much to have in the 3D view.
 * [Terminal](screenshots/terminal_progress_tracking.png) and [GUI](screenshots/ui_progress_tracking.png) output to help track render progress and give you an idea of the time remaining.
 * Add-on functionality is exposed via an operator (`spritesheet.render`) and property groups (`bpy.types.Scene.SpritesheetPropertyGroup` and `bpy.types.Scene.ReportingPropertyGroup`) for potential integration via scripting (untested). See [operators.py](operators.py) for other available operators.
 
@@ -77,6 +75,7 @@ When rendering, the add-on only changes a few settings - the file format (PNG), 
 
 <details>
 	<summary>Expand</summary>
+
 When **Control Animations** is enabled, this panel allows you to adjust your animation sets. Each animation set contains a list of scene objects and a corresponding [Action](https://docs.blender.org/manual/en/latest/animation/actions.html) (at this time, [NLA](https://docs.blender.org/manual/en/latest/editors/nla/index.html) is [not supported](#limitations)).
 
 Each object-action pair in a given set will be played at the same time, and stepped through frame-by-frame while rendering; each frame of the action results in a sprite in the spritesheet. Note that frame ranges, as defined in Blender, may not always start at the same point in time. If your actions are meant to be simultaneous within a set, you'll need to ensure the frame ranges line up manually.
@@ -92,6 +91,7 @@ Each animation set features a "Play in Viewport" button that can be used to prev
 
 <details>
 	<summary>Expand</summary>
+
 When **Control Camera** is enabled, you can choose a camera in the scene which Spritesheet Renderer will manipulate. The spritesheet will be rendered from the perspective of this camera, and the camera will be moved and resized (but never rotated) based on the control style you choose:
 
 * **Fit Each Frame**: Before rendering each frame, the camera is adjusted so that it fits the target objects as closely as possible.
@@ -110,6 +110,7 @@ Every control style depends on you providing a list of objects that are relevant
 
 <details>
 	<summary>Expand</summary>
+
 When **Control Materials** is enabled, you can set up and configure material sets for your scene. These are simple object-material pairs consisting of an object in the scene and a material to assign to that object. For convenience, you can instead choose a single material to use for every object in the set. The entire spritesheet is rendered once per material set.
 
 There are a number of scenarios where this is useful:
@@ -131,6 +132,7 @@ Each material set can have a **role** assigned to it. This is simple metadata de
 
 <details>
 	<summary>Expand</summary>
+
 When **Control Rotation** is enabled, you can select a set of objects that will be rotated several times during rendering. You just specify the number of rotations to use, and the objects are rotated through 0 to 360 degrees accordingly (on the Z axis only).
 
 As an example of when this is useful, imagine a walking animation from left to right. One way to create a right-to-left animation would be to duplicate the action and set the object rotation in the duplicate. However, it would be simpler to just use Control Rotation to adjust the character automatically at render time.
@@ -139,7 +141,7 @@ As an example of when this is useful, imagine a walking animation from left to r
 >
 > The simplest way to work around this is to either [apply rotation](https://docs.blender.org/manual/en/latest/scene_layout/object/editing/apply.html) on your objects, or create a new [Empty](https://docs.blender.org/manual/en/latest/modeling/empties.html) and parent your object to that, then provide the Empty in the Rotation Options panel.
 
-> :warning: If you only want the object rotated for some of your animations, you will likely have to accomplish this by disable Control Rotation and sending up duplicate actions that have the rotation incorporated.
+> :warning: If you only want the object rotated for some of your animations, you will likely have to accomplish this by disabling Control Rotation and sending up duplicate actions that have the rotation incorporated.
 </details>
 
 # Limitations
@@ -161,7 +163,9 @@ As an example of when this is useful, imagine a walking animation from left to r
 
 # Feedback
 
-If you do try out Spritesheet Renderer, feel free to [open an issue](https://github.com/chrishayesmu/Blender-Spritesheet-Renderer/issues/new) with any feedback or just to let me know. I'd love to hear from any users.
+If you do try out Spritesheet Renderer, feel free to [open an issue](https://github.com/chrishayesmu/Blender-Spritesheet-Renderer/issues/new) with any feedback or just to let me know. I'd love to hear from any users. If you're reporting a bug, please include your Blender and ImageMagick versions, as well as your OS.
+
+> :warning: If you are interacting with Spritesheet Renderer programmatically, especially using its operators, please let me know so I'm aware of the need for backwards compatibility in future releases.
 
 # FAQs
 
@@ -283,16 +287,31 @@ Inspiration for this project, as well as a good chunk of the initial code, is ow
 
 All screenshots can be found in [the screenshots folder](screenshots/).
 
-## Valid configuration
+## Addon UI (except Control Materials)
 
-![Add-on panel showing a valid configuration to demonstrate the use of the "Animate During Render" option, among others.](screenshots/ui_animate_rotate_nomaterials.png)
+<details>
+	<summary>Expand</summary>
 
-## Invalid configuration: no animations in file
+![Add-on panel showing a valid configuration to demonstrate the overall appearance of the UI.](screenshots/ui_animate_rotate_nomaterials.png)
 
-![Add-on panel showing an invalid configuration where "Animate During Render" is selected but the file contains no animations. The "Start Render" button is disabled with an error message.](screenshots/ui_configuration_error.png)
+</details>
+
+## Control Materials UI
+
+<details>
+	<summary>Expand</summary>
+
+![Add-on panel showing the UI for the Control Materials panel.](screenshots/ui_material_sets.png)
+
+</details>
 
 ## Example spritesheet output
 
-This spritesheet was generated with the 'Animate During Render' and 'Rotate Object' options enabled. There are 8 rotations and 1 animation in the spritesheet. There is some empty space between sprites because the camera control was configured with "Fit All Frames"; due to the empty space, when this spritesheet is animated, the object will move without being clipped.
+<details>
+	<summary>Expand</summary>
+
+This spritesheet was generated with the 'Control Animations' and 'Control Rotation' options enabled. There are 8 rotations and 1 animation in the spritesheet. There is some empty space between sprites because the camera control was configured with "Fit All Frames"; due to the empty space, when this spritesheet is animated, the object will move without being clipped.
 
 ![A sample spritesheet created by Spritesheet Renderer, of the same model arrayed over 12 rows and 12 columns. The frames go through an animation, then the model is rotated and the process repeated.](screenshots/sample_render_animated_and_rotated.png)
+
+</details>
