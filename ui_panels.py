@@ -6,9 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import preferences
 
 from render_operator import SPRITESHEET_OT_RenderSpritesheetOperator
-from util import FileSystemUtil
-from util import StringUtil
-from util import UIUtil
+from util import FileSystemUtil, StringUtil, UIUtil
 
 # TODO: it would be nice to update one of these panels to show a preview of how many
 # sprites will be rendered into how many files, based on the current configuration
@@ -39,19 +37,6 @@ class BaseAddonPanel:
             cls.bl_parent_id = ""
         else:
             raise ValueError("Unrecognized displayArea value: {}".format(display_area))
-
-    def message_box(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = "NONE") -> bpy.types.UILayout:
-        box = layout.box()
-        sub = box
-
-        if icon:
-            row = box.row(align = True)
-            row.label(text = "", icon = icon)
-            sub = row
-
-        self.wrapped_label(context, sub, text)
-
-        return box
 
     def template_list(self, context: bpy.types.Context, layout: bpy.types.UILayout, listtype_name: str, list_id: str, dataptr: Any, propname: str, active_dataptr: Any, active_propname: str, item_dyntip_propname: str = "",
                       min_rows: int = 1, header_labels: List[str] = None,
@@ -91,7 +76,7 @@ class BaseAddonPanel:
                     raise ValueError(f"Don't know how to process header label {label}")
 
                 col = sub.column()
-                self.wrapped_label(context, col, text)
+                UIUtil.wrapped_label(context, col, text)
 
         # Mostly passthrough but with a couple of standardized params
         list_col.template_list(listtype_name, list_id, dataptr, propname, active_dataptr, active_propname, item_dyntip_propname = item_dyntip_propname, rows = min(5, max(min_rows, len(list_obj))), maxrows = 5)
@@ -120,15 +105,6 @@ class BaseAddonPanel:
                 self._emit_operator(button_col, reorder_down_op, "TRIA_DOWN")
 
         return list_col
-
-    def wrapped_label(self, context: bpy.types.Context, layout: bpy.types.UILayout, text: str):
-        lines = UIUtil.wrap_text_in_region(context, text)
-
-        col = layout.column(align = True)
-        col.scale_y = .7 # bring text lines a little closer together
-
-        for line in lines:
-            col.label(text = line)
 
     def _emit_operator(self, layout: bpy.types.UILayout, op: Optional[Union[str, Tuple[str, Dict[str,  Any]]]], icon: str):
         if isinstance(op, str):
@@ -266,10 +242,10 @@ class SPRITESHEET_PT_AnimationSetPanel():
         set_frame_data = animation_set.get_frame_data()
 
         if set_frame_data is not None and any(action.get_frame_data() != set_frame_data for action in animation_set.get_selected_actions()):
-            self.message_box(context,
-                             self.layout,
-                             f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_frame_data.frame_min} to {set_frame_data.frame_max}).",
-                             "INFO"
+            UIUtil.message_box(context,
+                               self.layout,
+                               f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_frame_data.frame_min} to {set_frame_data.frame_max}).",
+                               "INFO"
             )
 
 class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
@@ -284,7 +260,7 @@ class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
 
-        # TODO nice-to-have: preview the render camera's positioning in the viewport, similar to animations/materials
+        self.layout.operator("spritesheet.optimize_camera", text = "Set Camera in Viewport", icon = 'HIDE_OFF')
 
         self.layout.active = props.camera_options.control_camera
         self.layout.prop_search(props.camera_options, "render_camera", bpy.data, "cameras")
@@ -348,8 +324,8 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
                 if reporting_props.output_to_panel:
                     self.draw_active_job_status(reporting_props)
             else:
-                self.message_box(context, self.layout, "No job is currently running. Showing results from the latest job.", icon = "INFO")
-                self.wrapped_label(context, self.layout, f"Last job completed after {StringUtil.time_as_string(reporting_props.elapsed_time)}. A total of {reporting_props.current_frame_num} frame(s) were rendered.")
+                UIUtil.message_box(context, self.layout, "No job is currently running. Showing results from the latest job.", icon = "INFO")
+                UIUtil.wrapped_label(context, self.layout, f"Last job completed after {StringUtil.time_as_string(reporting_props.elapsed_time)}. A total of {reporting_props.current_frame_num} frame(s) were rendered.")
 
                 if not reporting_props.last_error_message:
                     if FileSystemUtil.get_system_type() in ("unchecked", "unknown"):
@@ -360,7 +336,7 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
 
                 # Don't show error message if a job is still running, it would be misleading
                 if reporting_props.last_error_message:
-                    self.message_box(context, self.layout, f"Last job ended in error: {reporting_props.last_error_message}", icon = "ERROR")
+                    UIUtil.message_box(context, self.layout, f"Last job ended in error: {reporting_props.last_error_message}", icon = "ERROR")
 
     def draw_active_job_status(self, reporting_props):
         progress_percent = math.floor(100 * reporting_props.current_frame_num / reporting_props.total_num_frames)
@@ -377,7 +353,7 @@ class SPRITESHEET_PT_JobManagementPanel(BaseAddonPanel, bpy.types.Panel):
     def draw_render_disabled_reason(self, context: bpy.types.Context):
         props = context.scene.SpritesheetPropertyGroup
 
-        box = self.message_box(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason, icon = "ERROR")
+        box = UIUtil.message_box(context, self.layout, SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason, icon = "ERROR")
 
         # Hacky: check for keywords in the error string to expose some functionality
         reason_lower = SPRITESHEET_OT_RenderSpritesheetOperator.renderDisabledReason.lower()
@@ -556,7 +532,7 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
         self.layout.prop(props.rotation_options, "num_rotations")
 
         if 360 % props.rotation_options.num_rotations != 0:
-            self.message_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.", icon = "ERROR")
+            UIUtil.message_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.", icon = "ERROR")
 
         self.layout.separator()
 

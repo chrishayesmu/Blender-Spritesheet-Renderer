@@ -30,11 +30,11 @@ if not ADDON_DIR in sys.path:
 # Pretty hacky here: we define all the modules as strings and load them dynamically so that we can easily reload them multiple times
 # Otherwise we have to load and reload them in dependency order and frequently we find our changes not taking effect during development
 module_defs = [
+    "utils",
+    "property_groups",
     "operators",
     "render_operator",
-    "utils",
     "preferences",
-    "property_groups",
     "ui_lists",
     "ui_panels",
     ("util", ["Bounds", "Camera", "FileSystemUtil", "ImageMagick", "Register", "SceneSnapshot", "StringUtil", "TerminalOutput", "UIUtil"])
@@ -173,6 +173,7 @@ classes: List[Union[Type[bpy.types.Panel], Type[bpy.types.UIList], Type[bpy.type
     operators.SPRITESHEET_OT_MoveRotationTargetDownOperator,
     operators.SPRITESHEET_OT_MoveRotationTargetUpOperator,
     operators.SPRITESHEET_OT_OpenDirectoryOperator,
+    operators.SPRITESHEET_OT_OptimizeCameraOperator,
     operators.SPRITESHEET_OT_PlayAnimationSetOperator,
     operators.SPRITESHEET_OT_RemoveAnimationSetOperator,
     operators.SPRITESHEET_OT_RemoveCameraTargetOperator,

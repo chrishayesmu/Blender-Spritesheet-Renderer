@@ -1,14 +1,14 @@
 import bpy
 import collections
 import math
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 from util import StringUtil
 import utils
 
 frame_data = collections.namedtuple('frame_data', 'frame_min frame_max num_frames')
 
-def _get_camera_control_mode_options(self, context: bpy.types.Context):
+def get_camera_control_mode_options(self, context: bpy.types.Context):
     #pylint: disable=unused-argument
     props = context.scene.SpritesheetPropertyGroup
 
@@ -33,7 +33,7 @@ def _get_camera_control_mode(self) -> int:
         val = 0
     else:
         # Make sure the chosen value is still an option based on latest configuration
-        items = _get_camera_control_mode_options(self, bpy.context)
+        items = get_camera_control_mode_options(self, bpy.context)
         is_valid = any(item[3] == val for item in items)
 
         if not is_valid:
@@ -181,6 +181,12 @@ class AnimationOptionsPropertyGroup(bpy.types.PropertyGroup):
         default = False
     )
 
+    def get_animation_sets(self) -> Iterable[Optional[AnimationSetPropertyGroup]]:
+        if not self.control_animations:
+            return [None]
+
+        return self.animation_sets
+
 class CameraTargetPropertyGroup(bpy.types.PropertyGroup):
     target: bpy.props.PointerProperty(
         name = "Target",
@@ -204,7 +210,7 @@ class CameraOptionsPropertyGroup(bpy.types.PropertyGroup):
     camera_control_mode: bpy.props.EnumProperty(
         name = "Control Style",
         description = "How to control the Render Camera",
-        items = _get_camera_control_mode_options,
+        items = get_camera_control_mode_options,
         get = _get_camera_control_mode,
         set = _set_camera_control_mode
     )
@@ -474,6 +480,13 @@ class RotationOptionsPropertyGroup(bpy.types.PropertyGroup):
     selected_target_index: bpy.props.IntProperty(name = "", min = 0)
 
     targets: bpy.props.CollectionProperty(type = RotationTargetPropertyGroup)
+
+    def get_rotations(self) -> List[int]:
+        if not self.control_rotation:
+            return [0]
+
+        rotation_increment: float = 360 / self.num_rotations
+        return [int(n * rotation_increment) for n in range(self.num_rotations)]
 
     def is_valid(self) -> Tuple[bool, Optional[str]]:
         if not self.control_rotation:

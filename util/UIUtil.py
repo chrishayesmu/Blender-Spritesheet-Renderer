@@ -41,11 +41,33 @@ def create_panel_type(panel_type: Type[bpy.types.Panel], index: int, label: str 
 
     return new_type
 
+def message_box(context: bpy.types.Context, layout: bpy.types.UILayout, text: str, icon: str = "NONE") -> bpy.types.UILayout:
+    box = layout.box()
+    sub = box
+
+    if icon:
+        row = box.row(align = True)
+        row.label(text = "", icon = icon)
+        sub = row
+
+    wrapped_label(context, sub, text)
+
+    return box
+
 def unregister_subpanels():
     for cls in _created_types:
         Register.unregister_class(cls)
 
     _created_types.clear()
+
+def wrapped_label(context: bpy.types.Context, layout: bpy.types.UILayout, text: str):
+    lines = wrap_text_in_region(context, text)
+
+    col = layout.column(align = True)
+    col.scale_y = .7 # bring text lines a little closer together
+
+    for line in lines:
+        col.label(text = line)
 
 def wrap_text_in_region(context: bpy.types.Context, text: str):
     width = context.region.width

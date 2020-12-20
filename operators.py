@@ -1,9 +1,9 @@
 import bpy
 
 import preferences
+import property_groups
 import ui_panels
-from util import FileSystemUtil
-from util import ImageMagick
+from util import Camera as CameraUtil, FileSystemUtil, ImageMagick, SceneSnapshot, UIUtil
 import utils
 
 class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
@@ -43,7 +43,134 @@ class SPRITESHEET_OT_OpenDirectoryOperator(bpy.types.Operator):
     directory: bpy.props.StringProperty()
 
     def execute(self, _context):
-        return {"FINISHED"} if FileSystemUtil.open_file_explorer(self.directory) else {"CANCELLED"}
+        return {'FINISHED'} if FileSystemUtil.open_file_explorer(self.directory) else {'CANCELLED'}
+
+class SPRITESHEET_OT_OptimizeCameraOperator(bpy.types.Operator):
+    """Sets the Render Camera the same way it will be set while rendering the spritesheet, to help preview camera options.
+
+This may have to iterate many frames of animation data, so this can take a long time if your scene is expensive to animate (e.g. modifiers such as subdivision surface)."""
+    bl_idname = "spritesheet.optimize_camera"
+    bl_label = "Optimize Camera for Spritesheet"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def get_animation_set_options(self, context: bpy.types.Context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        if not props.animation_options.control_animations:
+            return [("0", "N/A", "")]
+
+        options = []
+
+        for index, animation_set in enumerate(props.animation_options.animation_sets):
+            item = (str(index), f"Set {index} - {animation_set.name}", "")
+            options.append(item)
+
+        return options
+
+    def get_rotation_angle_options(self, context: bpy.types.Context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        angles = props.rotation_options.get_rotations()
+        options = []
+
+        for angle in angles:
+            item = (str(angle), f"{angle} degrees", "")
+            options.append(item)
+
+        return options
+
+    animation_set: bpy.props.EnumProperty(
+        name = "Animation Set",
+        items = get_animation_set_options
+    )
+
+    control_mode: bpy.props.EnumProperty(
+        name = "Control Style",
+        items = property_groups.get_camera_control_mode_options
+    )
+
+    rotation_angle: bpy.props.EnumProperty(
+        name = "Rotation Angle",
+        items = get_rotation_angle_options
+    )
+
+    @classmethod
+    def poll(cls, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        is_valid, _ = props.camera_options.is_valid()
+
+        return props.camera_options.control_camera and is_valid
+
+    def invoke(self, context, _event):
+        props = context.scene.SpritesheetPropertyGroup
+
+        self.control_mode = props.camera_options.camera_control_mode
+
+        return self.execute(context)
+
+    def execute(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+
+        animation_sets = props.animation_options.get_animation_sets()
+        rotations = props.rotation_options.get_rotations()
+
+        # TODO: the shading mode of the viewport (e.g. wireframe, solid) actually makes a big difference in how long
+        # it takes to iterate animation frames, but jsut setting it in this method doesn't help; it probably isn't
+        # effective until end-of-frame. Rewriting this operator as modal and yielding after setting the shading
+        # could cut the optimization time down a lot for complex scenes.
+
+        snapshot = SceneSnapshot.SceneSnapshot(context, snapshot_types = {'ACTIONS', 'ROTATIONS', 'SELECTIONS'})
+
+        if self.control_mode == "move_once":
+            CameraUtil.optimize_for_all_frames(context, rotations, animation_sets)
+        elif self.control_mode == "move_each_frame":
+            CameraUtil.fit_camera_to_targets(context)
+        elif self.control_mode == "move_each_animation":
+            index = int(self.animation_set)
+            animation_set = animation_sets[index]
+
+            is_valid, _ = animation_set.is_valid()
+
+            if not is_valid:
+                # Don't report an error; it's visible in the operator's panel
+                return {'CANCELLED'}
+
+            CameraUtil.optimize_for_animation_set(context, animation_set)
+        elif self.control_mode == "move_each_rotation":
+            angle = int(self.rotation_angle)
+            CameraUtil.optimize_for_rotation(context, angle, animation_sets)
+        else:
+            self.report({'ERROR'}, f"Unknown camera control mode {self.control_mode}")
+            return {'CANCELLED'}
+
+        snapshot.restore_from_snapshot(context)
+
+        return {'FINISHED'}
+
+    def draw(self, context):
+        props = context.scene.SpritesheetPropertyGroup
+        animation_sets = props.animation_options.get_animation_sets()
+
+        self.layout.use_property_decorate = False
+        self.layout.use_property_split = True
+
+        if self.control_mode == "move_each_animation":
+            # Validate animation sets early so the error shows up on top
+            index = int(self.animation_set)
+            animation_set = animation_sets[index]
+            is_valid, err = animation_set.is_valid()
+
+            if not is_valid:
+                UIUtil.message_box(context, self.layout, "Animation set is invalid: " + err, "ERROR")
+                self.layout.separator()
+
+        self.layout.prop(self, "control_mode")
+
+        if self.control_mode == "move_each_animation":
+            self.layout.prop(self, "animation_set")
+        elif self.control_mode == "move_each_rotation":
+            self.layout.prop(self, "rotation_angle")
 
 ########################################################
 # Operators for previewing spritesheet props in scene
