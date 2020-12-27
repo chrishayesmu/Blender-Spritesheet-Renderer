@@ -40,7 +40,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 cls._validate_animation_options,
                 cls._validate_camera_options,
                 cls._validate_material_options,
-                cls._validate_rotation_options
+                cls._validate_rotation_options,
+                cls._validate_object_mode # put this last or else it'll get annoying real quick
             ]
 
             is_valid = True
@@ -51,8 +52,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
                 if not is_valid:
                     break
-
-            # TODO might need to check that we're in object mode
 
             if cls.renderDisabledReason != original_reason:
                 # force_redraw_ui calls an operator, which you can't do from within a poll method, so we set it
@@ -131,6 +130,13 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 role_name = utils.enum_display_name_from_identifier(sets[0]["set"], "role", role)
                 set_indices = StringUtil.join_with_commas([str(set_tuple["index"] + 1) for set_tuple in sets])
                 return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role_name}'. This role can only be used once.")
+
+        return (True, None)
+
+    @classmethod
+    def _validate_object_mode(cls, context: bpy.types.Context) -> Tuple[bool, Optional[str]]:
+        if context.active_object is not None and context.active_object.mode != 'OBJECT':
+            return (False, "Rendering may only be started while in Object mode.")
 
         return (True, None)
 

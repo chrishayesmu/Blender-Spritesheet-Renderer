@@ -76,6 +76,8 @@ class AnimationSetTargetPropertyGroup(bpy.types.PropertyGroup):
         return frame_data(self.min_frame, self.max_frame, self.num_frames)
 
 class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
+    # TODO: add a frame skip setting so we don't have to render every single frame
+
     def _get_name(self) -> str:
         # Prefer name given by user; if none, use the first action name; otherwise just blank
         name: str = self.get("name")
