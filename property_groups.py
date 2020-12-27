@@ -306,8 +306,8 @@ class MaterialSetPropertyGroup(bpy.types.PropertyGroup):
         name = "Mode",
         description = "How materials should be assigned within this set",
         items = [
-            ("individual", "Material Per Target", "Each Render Target is manually assigned a material in this set."),
-            ("shared", "Shared Material", "A single material is chosen which will be applied to every Render Target when this set is being rendered. " +
+            ("individual", "Material Per Target", "Each target is manually assigned a material in this set."),
+            ("shared", "Shared Material", "A single material is chosen which will be applied to every target when this set is being rendered. " +
                                           "This is mostly useful for certain effects, such as rendering object normals from the camera's perspective.")
         ],
         default = "individual"

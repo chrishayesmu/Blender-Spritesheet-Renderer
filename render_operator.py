@@ -131,6 +131,12 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 set_indices = StringUtil.join_with_commas([str(set_tuple["index"] + 1) for set_tuple in sets])
                 return (False, f"There are {len(sets)} material sets ({set_indices}) using the role '{role_name}'. This role can only be used once.")
 
+        material_set_names = [s.name for s in props.material_options.material_sets]
+        repeated_names = utils.repeated_entries(material_set_names)
+
+        if len(repeated_names) > 0:
+            return (False, f"Material set names must be unique. There are {len(repeated_names)} name(s) which are not.")
+
         return (True, None)
 
     @classmethod
@@ -471,9 +477,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         material_set = props.material_options.material_sets[material_set_index]
         if include_material_set and material_set is not None:
-            # Possible TODO: only include index if necessary (i.e. multiple material sets have the same role). Pretty low priority
-            # TODO why should this be role instead of name?
-            output_file_path += "_" + self._format_string_for_filename(material_set.role) + "_" + str(material_set_index)
+            output_file_path += "_" + self._format_string_for_filename(material_set.name)
 
         if props.animation_options.control_animations and props.separate_files_per_animation:
             output_file_path += "_" + self._format_string_for_filename(animation_set.name)
@@ -583,7 +587,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
     def _format_string_for_filename(self, string: str) -> str:
         # TODO this should strip characters that aren't legal on the file system
-        return string.replace(' ', '_').lower()
+        return string.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '').lower()
 
     def _get_next_job_id(self) -> int:
         self._next_job_id += 1
