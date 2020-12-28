@@ -62,6 +62,24 @@ def pad_image_to_size(image_path: str, size: Tuple[int, int]) -> bool:
 
     return process_output.returncode == 0
 
+def trim_and_resize_image_ignore_aspect(image_path: str, size: Tuple[int, int]) -> bool:
+    # Size: ! indicates to force size and not try to preserve the aspect ratio
+    size_arg = str(size[0]) + "x" + str(size[1]) + "!"
+
+    args = [
+        preferences.PrefsAccess.image_magick_path,
+        "convert",
+        image_path, # input image
+        "-trim",
+        "-resize",
+        size_arg,
+        image_path # output image
+    ]
+
+    process_output = subprocess.run(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE, check = False)
+
+    return process_output.returncode == 0
+
 def validate_image_magick_at_path(path: str = None) -> Tuple[bool, Optional[str]]:
     """Checks that ImageMagick is installed at the given path, or the path stored in the addon preferences if no path is provided."""
 

@@ -398,33 +398,6 @@ class MaterialOptionsPropertyGroup(bpy.types.PropertyGroup):
         default = False
     )
 
-class RenderTargetPropertyGroup(bpy.types.PropertyGroup):
-
-    def _on_target_mesh_updated(self, _context):
-        #pylint: disable=invalid-name
-
-        # Sync up the mesh_object property for convenience
-        self.mesh_object = None if self.mesh is None else utils.find_object_data_for_mesh(self.mesh)
-        self.previous_mesh = self.mesh
-
-    mesh: bpy.props.PointerProperty(
-        name = "Render Target",
-        description = "A mesh to be rendered into the spritesheet",
-        type = bpy.types.Mesh,
-        update = _on_target_mesh_updated
-    )
-
-    # Just stores the object linked to the mesh so we don't have to look it up constantly
-    mesh_object: bpy.props.PointerProperty(type = bpy.types.Object)
-
-    previous_mesh: bpy.props.PointerProperty(type = bpy.types.Mesh)
-
-    rotation_root: bpy.props.PointerProperty(
-        name = "Rotation Root",
-        description = "If 'Control Rotation' is set, this object will be rotated instead of the Render Target. This is useful for parent objects or armatures. If not set, the Render Target is rotated",
-        type = bpy.types.Object
-    )
-
 class ReportingPropertyGroup(bpy.types.PropertyGroup):
     current_frame_num: bpy.props.IntProperty() # which frame we are currently rendering
 
@@ -515,6 +488,12 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
     rotation_options: bpy.props.PointerProperty(type = RotationOptionsPropertyGroup)
 
     ### Output file properties
+    force_image_to_square: bpy.props.BoolProperty(
+        name = "Trim + Resize to Square",
+        description = "If true, all output images will be trimmed, then forced to square dimensions. This operation will not preserve the image's aspect ratio",
+        default = False
+    )
+
     pad_output_to_power_of_two: bpy.props.BoolProperty(
         name = "Pad to Power-of-Two",
         description = "If true, all output images will be padded with transparent pixels to the smallest power-of-two size that can fit the original output",

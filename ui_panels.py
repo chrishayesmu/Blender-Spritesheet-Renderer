@@ -482,10 +482,9 @@ class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
 
         self.layout.prop(props, "sprite_size")
 
-        row = self.layout.row(heading = "Output Size")
-        row.prop(props, "pad_output_to_power_of_two")
-
-        self.layout.separator()
+        col = self.layout.column(heading = "Output Size", align = True)
+        col.prop(props, "pad_output_to_power_of_two")
+        col.prop(props, "force_image_to_square")
 
         col = self.layout.column(heading = "Separate Files by", align = True)
 

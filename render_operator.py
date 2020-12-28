@@ -883,6 +883,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             target_size = (self._next_power_of_two(image_size[0]), self._next_power_of_two(image_size[1]))
             target_size_str = "{}x{}".format(target_size[0], target_size[1])
 
+            image_magick_output["args"]["outputImageSize"] = target_size
+
             if target_size == image_size:
                 self._report_job("ImageMagick", "Padding not necessary; image output size {} is already power-of-two".format(target_size_str), job_id, reporting_props, is_skipped = True)
             else:
@@ -893,6 +895,20 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 # Record padding in JSON for tool integration
                 padding_amount = (target_size[0] - image_size[0], target_size[1] - image_size[1])
                 image_magick_output["args"]["padding"] = padding_amount
+
+        if props.force_image_to_square:
+            job_id = self._get_next_job_id()
+            image_size = image_magick_output["args"]["outputImageSize"]
+            max_dim = max(image_size)
+            target_size = (max_dim, max_dim)
+            target_size_str = f"{max_dim}x{max_dim}"
+
+            image_magick_output["args"]["outputImageSize"] = target_size
+
+            # Unlike padding to power-of-two, we can't check the current size, because it could include transparency to trim
+            self._report_job("ImageMagick", f"Forcing output image to square size {target_size_str}", job_id, reporting_props)
+            ImageMagick.trim_and_resize_image_ignore_aspect(image_magick_output["args"]["outputFilePath"], target_size)
+            self._report_job("ImageMagick", f"Output image successfully trimmed and resized to square size {target_size_str} from {image_size[0]}x{image_size[1]}", job_id, reporting_props, is_complete = True)
 
         return image_magick_output
 
