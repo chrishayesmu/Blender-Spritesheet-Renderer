@@ -487,6 +487,10 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
 
     rotation_options: bpy.props.PointerProperty(type = RotationOptionsPropertyGroup)
 
+    def _on_sprite_size_changed(self, context: bpy.types.Context):
+        context.scene.render.resolution_x = self.sprite_size[0]
+        context.scene.render.resolution_y = self.sprite_size[1]
+
     ### Output file properties
     force_image_to_square: bpy.props.BoolProperty(
         name = "Trim + Resize to Square",
@@ -520,8 +524,9 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
 
     sprite_size: bpy.props.IntVectorProperty(
         name = "Sprite Size",
-        description = "How large each individual sprite should be",
+        description = "How large each individual sprite should be. If non-square, the camera's output will be cropped, not scaled",
         default = (128, 128),
         min = 16,
-        size = 2
+        size = 2,
+        update = _on_sprite_size_changed
     )
