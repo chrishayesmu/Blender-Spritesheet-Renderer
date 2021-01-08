@@ -916,6 +916,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         scene = context.scene
         props = scene.SpritesheetPropertyGroup
 
+        scene.cycles.pixel_filter_type = 'BOX'
         scene.render.image_settings.file_format = 'PNG'
         scene.render.image_settings.color_mode = 'RGBA'
         scene.render.film_transparent = True  # Transparent PNG
