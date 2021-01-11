@@ -530,7 +530,12 @@ class SPRITESHEET_PT_RotationOptionsPanel(BaseAddonPanel, bpy.types.Panel):
         self.layout.active = props.rotation_options.control_rotation
         self.layout.prop(props.rotation_options, "num_rotations")
 
-        if 360 % props.rotation_options.num_rotations != 0:
+        row = self.layout.row(heading = "Custom Increment")
+        row.prop(props.rotation_options, "use_custom_rotation_increment", text = "")
+        if props.rotation_options.use_custom_rotation_increment:
+            row.prop(props.rotation_options, "custom_rotation_increment", text = "Degrees")
+
+        if not props.rotation_options.use_custom_rotation_increment and 360 % props.rotation_options.num_rotations != 0:
             UIUtil.message_box(context, self.layout, "Chosen number of angles does not smoothly divide into 360 degrees (integer math only). Rotations may be slightly different from your expectations.", icon = "ERROR")
 
         self.layout.separator()

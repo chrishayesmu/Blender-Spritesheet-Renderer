@@ -452,6 +452,20 @@ class RotationOptionsPropertyGroup(bpy.types.PropertyGroup):
         max = 360
     )
 
+    custom_rotation_increment: bpy.props.IntProperty(
+        name = "Rotation Increment",
+        description = "How many degrees of rotation should be applied every time the objects are rotated",
+        default = 0,
+        min = -359,
+        max = 359
+    )
+
+    use_custom_rotation_increment: bpy.props.BoolProperty(
+        name = "Custom Increment",
+        description = "Whether to use a custom increment when rotating objects. If not set, the objects will be rotated such that they complete a single full 360 degree rotation over the course of rendering",
+        default = False
+    )
+
     selected_target_index: bpy.props.IntProperty(name = "", min = 0)
 
     targets: bpy.props.CollectionProperty(type = RotationTargetPropertyGroup)
@@ -460,7 +474,7 @@ class RotationOptionsPropertyGroup(bpy.types.PropertyGroup):
         if not self.control_rotation:
             return [0]
 
-        rotation_increment: float = 360 / self.num_rotations
+        rotation_increment: float = self.custom_rotation_increment if self.use_custom_rotation_increment else 360 / self.num_rotations
         return [int(n * rotation_increment) for n in range(self.num_rotations)]
 
     def is_valid(self) -> Tuple[bool, Optional[str]]:
@@ -469,6 +483,9 @@ class RotationOptionsPropertyGroup(bpy.types.PropertyGroup):
 
         if len(self.targets) == 0 or any(t.target is None for t in self.targets):
             return (False, "Not all object entries have been set. Select objects, or remove the unused entries.")
+
+        if self.use_custom_rotation_increment and self.custom_rotation_increment == 0:
+            return (False, "Custom Increment is in use, but the increment amount is set to 0.")
 
         return (True, None)
 

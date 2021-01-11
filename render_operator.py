@@ -287,7 +287,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         rotations: List[int]
         separate_files_per_rotation: bool
         if props.rotation_options.control_rotation:
-            rotations = [int(n * (360 / props.rotation_options.num_rotations)) for n in range(props.rotation_options.num_rotations)]
+            rotations = props.rotation_options.get_rotations()
             separate_files_per_rotation = props.separate_files_per_rotation
         else:
             rotations = [None]
