@@ -52,15 +52,28 @@ def _optimize_for_all_frames(context: bpy.types.Context, camera: bpy.types.Camer
     if camera.type != "ORTHO":
         raise RuntimeError("Camera.optimize_for_all_frames currently only works for orthographic cameras")
 
+    props = context.scene.SpritesheetPropertyGroup
     cumulative_bounds = None
 
-    for angle in rotations_degrees:
-        rotation_bounds = _optimize_for_rotation(context, camera, camera_obj, angle, animation_sets)
+    if props.rotation_options.control_rotation:
+        for angle in rotations_degrees:
+            bounds = _optimize_for_rotation(context, camera, camera_obj, angle, animation_sets)
 
-        if cumulative_bounds is None:
-            cumulative_bounds = rotation_bounds
-        else:
-            cumulative_bounds.encapsulate(rotation_bounds)
+            if cumulative_bounds is None:
+                cumulative_bounds = bounds
+            else:
+                cumulative_bounds.encapsulate(bounds)
+    elif props.animation_options.control_animations:
+        for animation_set in props.animation_options.get_animation_sets():
+            bounds = _optimize_for_animation_set(context, camera, camera_obj, animation_set)
+
+            if cumulative_bounds is None:
+                cumulative_bounds = bounds
+            else:
+                cumulative_bounds.encapsulate(bounds)
+    else:
+        fit_camera_to_targets(context)
+        cumulative_bounds = Bounds.from_center_and_size(camera_obj.location, Vector((camera.ortho_scale, camera.ortho_scale, 0)))
 
     camera_obj.location = cumulative_bounds.center
     camera.ortho_scale = max(cumulative_bounds.size)
