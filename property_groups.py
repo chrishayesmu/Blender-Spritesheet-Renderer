@@ -6,7 +6,7 @@ from typing import Iterable, List, Optional, Tuple
 from util import StringUtil
 import utils
 
-frame_data = collections.namedtuple('frame_data', 'frame_min frame_max num_frames')
+frame_data = collections.namedtuple('frame_data', 'frame_min frame_max num_frames num_output_frames')
 
 def get_camera_control_mode_options(self, context: bpy.types.Context):
     #pylint: disable=unused-argument
@@ -73,10 +73,9 @@ class AnimationSetTargetPropertyGroup(bpy.types.PropertyGroup):
         if self.action is None:
             return None
 
-        return frame_data(self.min_frame, self.max_frame, self.num_frames)
+        return frame_data(self.min_frame, self.max_frame, self.num_frames, self.num_frames)
 
 class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
-    # TODO: add a frame skip setting so we don't have to render every single frame
     # TODO: add a setting to skip last frame, to handle common situation for looping animations
 
     def _get_name(self) -> str:
@@ -98,6 +97,13 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
 
     # There should be one action per render target; this is handled elsewhere
     actions: bpy.props.CollectionProperty(type = AnimationSetTargetPropertyGroup)
+
+    frame_skip: bpy.props.IntProperty(
+        name = "Frame Skip",
+        description = "How many frames to skip while rendering this animation set. If 0, all frames will be rendered; if 1, every other frame is rendered; and so on",
+        default = 0,
+        min = 0
+    )
 
     is_previewing: bpy.props.BoolProperty(default = False)
 
@@ -147,8 +153,9 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         frame_min = min(a.min_frame for a in selected_actions)
         frame_max = max(a.max_frame for a in selected_actions)
         num_frames = frame_max - frame_min + 1
+        num_output_frames = math.ceil(num_frames / (1 + self.frame_skip))
 
-        return frame_data(frame_min, frame_max, num_frames)
+        return frame_data(frame_min, frame_max, num_frames, num_output_frames)
 
     def get_selected_actions(self) -> List[AnimationSetTargetPropertyGroup]:
         return list([a for a in self.actions if a.action is not None])

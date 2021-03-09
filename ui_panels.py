@@ -203,7 +203,7 @@ class SPRITESHEET_PT_AnimationSetPanel():
 
         self.layout.enabled = props.animation_options.control_animations
 
-        row = self.layout.row(align = True)
+        row = self.layout.row()
         row.operator("spritesheet.remove_animation_set", text = "Remove Set", icon = "REMOVE").index = self.index
 
         if context.screen.is_animation_playing and animation_set.is_previewing:
@@ -212,7 +212,10 @@ class SPRITESHEET_PT_AnimationSetPanel():
             row.operator("spritesheet.play_animation_set", text = "Play in Viewport", icon = "PLAY").index = self.index
 
         self.layout.separator()
-        self.layout.prop(animation_set, "output_frame_rate")
+
+        row = self.layout.row()
+        row.prop(animation_set, "output_frame_rate")
+        row.prop(animation_set, "frame_skip")
 
         self.layout.separator()
 

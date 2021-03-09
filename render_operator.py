@@ -451,8 +451,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     def _assign_actions_from_set(self, animation_set: AnimationSetPropertyGroup):
         set_frame_data = animation_set.get_frame_data()
 
-        if any(action.get_frame_data() != set_frame_data for action in animation_set.get_selected_actions()):
-            self._terminal_writer.write(f"Warning: not all actions in animation set {animation_set.name} share the frame range ({set_frame_data.frame_min}, {set_frame_data.frame_max})")
+        if any(action.get_frame_data().frame_min != set_frame_data.frame_min or action.get_frame_data().frame_max != set_frame_data.frame_max for action in animation_set.get_selected_actions()):
+            self._terminal_writer.write(f"Warning: not all actions in animation set {animation_set.name} share the frame range ({set_frame_data.frame_min}, {set_frame_data.frame_max})\n")
 
         animation_set.assign_actions_to_targets()
 
@@ -549,6 +549,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 assert "animation_set" in in_data, "props.animation_options.control_animations is enabled, but data object didn't have 'animation_set' key"
 
                 out_data["frameRate"] = in_data["animation_set"].output_frame_rate
+                out_data["frameSkip"] = in_data["animation_set"].frame_skip
                 out_data["name"] = in_data["animation_set"].name
                 out_data["numFrames"] = in_data["numFrames"]
 
@@ -581,7 +582,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             if animation_set is None:
                 total_frames_across_actions += 1
             else:
-                total_frames_across_actions += animation_set.get_frame_data().num_frames
+                total_frames_across_actions += animation_set.get_frame_data().num_output_frames
 
         return total_frames_across_actions * len(material_sets) * len(rotations)
 
@@ -728,7 +729,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # Go frame-by-frame and render the object
         job_id = self._get_next_job_id()
         rendered_frames = 0
-        for index in range(frame_data.frame_min, frame_data.frame_max + 1):
+        index = frame_data.frame_min
+        while index <= frame_data.frame_max:
             text = f"({index - frame_data.frame_min + 1}/{frame_data.num_frames})"
             self._report_job("Rendering frames", text, job_id, reporting_props)
 
@@ -752,6 +754,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
             self._run_render_without_stdout(context)
             rendered_frames += 1
+            index += 1 + animation_set.frame_skip
 
             # Yield after each frame to let the UI render
             yield
