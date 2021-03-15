@@ -76,8 +76,6 @@ class AnimationSetTargetPropertyGroup(bpy.types.PropertyGroup):
         return frame_data(self.min_frame, self.max_frame, self.num_frames, self.num_frames)
 
 class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
-    # TODO: add a setting to skip last frame, to handle common situation for looping animations
-
     def _get_name(self) -> str:
         # Prefer name given by user; if none, use the first action name; otherwise just blank
         name: str = self.get("name")
@@ -103,6 +101,12 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         description = "How many frames to skip while rendering this animation set. If 0, all frames will be rendered; if 1, every other frame is rendered; and so on",
         default = 0,
         min = 0
+    )
+
+    ignore_last_frame: bpy.props.BoolProperty(
+        name = "Ignore last frame",
+        description = "If set, the last frame of each action in this set will be ignored. This is useful in situations where an animation is repeating, and the last frame is a duplicate of the first for interpolation purposes",
+        default = False
     )
 
     is_previewing: bpy.props.BoolProperty(default = False)
@@ -152,6 +156,10 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
 
         frame_min = min(a.min_frame for a in selected_actions)
         frame_max = max(a.max_frame for a in selected_actions)
+
+        if self.ignore_last_frame:
+            frame_max -= 1
+
         num_frames = frame_max - frame_min + 1
         num_output_frames = math.ceil(num_frames / (1 + self.frame_skip))
 
@@ -173,12 +181,6 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         if len(repeats) > 0:
             repeat_names = list(map(lambda o: o.name, repeats))
             return (False, f"Each object may only appear as a target once per animation set. Repeated targets: {StringUtil.join_with_commas(repeat_names, quote_elements = True)}")
-
-
-        unique_targets = { a.target.name for a in self.actions }
-
-        if len(unique_targets) != len(self.actions):
-            return (False, "Each object may only appear as a target once per animation set.")
 
         return (True, None)
 

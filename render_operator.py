@@ -448,14 +448,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         return
 
-    def _assign_actions_from_set(self, animation_set: AnimationSetPropertyGroup):
-        set_frame_data = animation_set.get_frame_data()
-
-        if any(action.get_frame_data().frame_min != set_frame_data.frame_min or action.get_frame_data().frame_max != set_frame_data.frame_max for action in animation_set.get_selected_actions()):
-            self._terminal_writer.write(f"Warning: not all actions in animation set {animation_set.name} share the frame range ({set_frame_data.frame_min}, {set_frame_data.frame_max})\n")
-
-        animation_set.assign_actions_to_targets()
-
     def _base_output_dir(self) -> str:
         if bpy.data.filepath:
             out_dir = os.path.dirname(bpy.data.filepath)
@@ -713,7 +705,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         props = scene.SpritesheetPropertyGroup
         reporting_props = scene.ReportingPropertyGroup
 
-        self._assign_actions_from_set(animation_set)
+        animation_set.assign_actions_to_targets()
         frame_data = animation_set.get_frame_data()
         num_digits_in_frame_max: int = int(math.log10(frame_data.frame_max)) + 1
 

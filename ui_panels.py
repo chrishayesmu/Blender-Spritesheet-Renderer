@@ -203,7 +203,7 @@ class SPRITESHEET_PT_AnimationSetPanel():
 
         self.layout.enabled = props.animation_options.control_animations
 
-        row = self.layout.row()
+        row = self.layout.row(align = True)
         row.operator("spritesheet.remove_animation_set", text = "Remove Set", icon = "REMOVE").index = self.index
 
         if context.screen.is_animation_playing and animation_set.is_previewing:
@@ -212,6 +212,8 @@ class SPRITESHEET_PT_AnimationSetPanel():
             row.operator("spritesheet.play_animation_set", text = "Play in Viewport", icon = "PLAY").index = self.index
 
         self.layout.separator()
+
+        self.layout.prop(animation_set, "ignore_last_frame")
 
         row = self.layout.row()
         row.prop(animation_set, "output_frame_rate")
@@ -240,16 +242,6 @@ class SPRITESHEET_PT_AnimationSetPanel():
         list_col.separator()
         list_col.prop_search(prop, "target", bpy.data, "objects", text = "Target Object", icon = "OBJECT_DATA")
         list_col.prop_search(prop, "action", bpy.data, "actions", text = "Action", icon = "ACTION")
-
-        # Show a warning if there are actions with different frame ranges
-        set_frame_data = animation_set.get_frame_data()
-
-        if set_frame_data is not None and any(action.get_frame_data() != set_frame_data for action in animation_set.get_selected_actions()):
-            UIUtil.message_box(context,
-                               self.layout,
-                               f"Not all selected actions have the same range of frames. This animation set will play over the superset of frames for all actions ({set_frame_data.frame_min} to {set_frame_data.frame_max}).",
-                               "INFO"
-            )
 
 class SPRITESHEET_PT_CameraPanel(BaseAddonPanel, bpy.types.Panel):
     bl_idname = "SPRITESHEET_PT_camera"
