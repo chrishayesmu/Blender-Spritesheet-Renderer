@@ -706,8 +706,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         reporting_props = scene.ReportingPropertyGroup
 
         animation_set.assign_actions_to_targets()
-        frame_data = animation_set.get_frame_data()
-        num_digits_in_frame_max: int = int(math.log10(frame_data.frame_max)) + 1
 
         action_data = {
             "animation_set": animation_set,
@@ -721,9 +719,11 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         # Go frame-by-frame and render the object
         job_id = self._get_next_job_id()
         rendered_frames = 0
-        index = frame_data.frame_min
-        while index <= frame_data.frame_max:
-            text = f"({index - frame_data.frame_min + 1}/{frame_data.num_frames})"
+        frames_to_render = animation_set.get_frames_to_render()
+        num_digits_in_frame_max = int(math.log10(frames_to_render[-1])) + 1
+
+        for index in frames_to_render:
+            text = f"({index - frames_to_render[0] + 1}/{len(frames_to_render)})"
             self._report_job("Rendering frames", text, job_id, reporting_props)
 
             # Order of properties in filename is important; they need to sort lexicographically
@@ -738,7 +738,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
             filepath = os.path.join(temp_dir_path, filename)
 
-            if index == frame_data.frame_min:
+            if index == frames_to_render[0]:
                 action_data["firstFrameFilepath"] = filepath + ".png"
 
             scene.frame_set(index)
@@ -746,7 +746,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
             self._run_render_without_stdout(context)
             rendered_frames += 1
-            index += 1 + animation_set.frame_skip
 
             # Yield after each frame to let the UI render
             yield

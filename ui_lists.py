@@ -10,7 +10,7 @@ class SPRITESHEET_UL_AnimationActionPropertyList(bpy.types.UIList):
         split.label(text = item.action.name if item.action else "N/A", icon = "ACTION")
 
         sub = split.column()
-        last_frame_offset = -1 if item.action and data.ignore_last_frame else 0
+        last_frame_offset = -1 if item.action and data.last_frame_usage == "force_exclude" else 0
         sub.label(text = f"Frames {item.min_frame}-{item.max_frame + last_frame_offset}" if item.action else " ")
 
 class SPRITESHEET_UL_CameraTargetPropertyList(bpy.types.UIList):

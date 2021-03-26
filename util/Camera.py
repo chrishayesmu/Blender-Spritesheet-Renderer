@@ -132,11 +132,11 @@ def _optimize_for_rotation(context: bpy.types.Context, camera: bpy.types.Camera,
 def _find_bounding_box_for_animation_set(context: bpy.types.Context, animation_set: AnimationSetPropertyGroup):
     """Returns a Bounds object describing the minimal bounding box that can fit all frames of the animation set"""
     scene = context.scene
-    frame_data = animation_set.get_frame_data()
+    frames_to_render = animation_set.get_frames_to_render()
 
     cumulative_bounds = None
 
-    for index in range(frame_data.frame_min, frame_data.frame_max + 1):
+    for index in frames_to_render:
         scene.frame_set(index)
         current_bounds = _find_camera_target_bounds(context, scene)
 

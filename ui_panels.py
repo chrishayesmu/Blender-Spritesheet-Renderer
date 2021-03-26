@@ -169,16 +169,21 @@ class SPRITESHEET_PT_AnimationSetPanel():
     def draw_header(self, context):
         props = context.scene.SpritesheetPropertyGroup
         animation_set = props.animation_options.animation_sets[self.index]
-        frame_data = animation_set.get_frame_data()
 
         self.layout.enabled = props.animation_options.control_animations
         self.layout.use_property_split = True
         self.layout.prop(animation_set, "name", text = f"Animation Set {self.index + 1}")
 
-        if frame_data:
+        frames = animation_set.get_frames_to_render()
+        if len(frames) > 0:
+            label_text = f"{len(frames)} frames at {animation_set.output_frame_rate} fps"
+
+            if animation_set.frame_skip > 0:
+                label_text += f" ({animation_set.frame_skip} skip)"
+
             sub = self.layout.column()
             sub.alignment = "RIGHT"
-            sub.label(text = f"{frame_data.num_frames} frames at {animation_set.output_frame_rate} fps")
+            sub.label(text = label_text)
 
     def draw(self, context):
         props = context.scene.SpritesheetPropertyGroup
@@ -213,11 +218,18 @@ class SPRITESHEET_PT_AnimationSetPanel():
 
         self.layout.separator()
 
-        self.layout.prop(animation_set, "ignore_last_frame")
-
         row = self.layout.row()
         row.prop(animation_set, "output_frame_rate")
         row.prop(animation_set, "frame_skip")
+
+        self.layout.prop(animation_set, "last_frame_usage")
+
+        frames_to_render = animation_set.get_frames_to_render()
+        if animation_set.last_frame_usage == "force_include" and len(frames_to_render) >= 2:
+            last_frame_included_naturally = (frames_to_render[-1] - frames_to_render[-2]) == (animation_set.frame_skip + 1)
+
+            if not last_frame_included_naturally:
+                UIUtil.message_box(context, self.layout, "The last frame has been forcibly appended and will not match the timing of other frames.", icon = "ERROR")
 
         self.layout.separator()
 

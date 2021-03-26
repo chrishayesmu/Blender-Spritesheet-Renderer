@@ -103,13 +103,17 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
         min = 0
     )
 
-    ignore_last_frame: bpy.props.BoolProperty(
-        name = "Ignore last frame",
-        description = "If set, the last frame of each action in this set will be ignored. This is useful in situations where an animation is repeating, and the last frame is a duplicate of the first for interpolation purposes",
-        default = False
-    )
-
     is_previewing: bpy.props.BoolProperty(default = False)
+
+    last_frame_usage: bpy.props.EnumProperty(
+        name = "Last Frame",
+        description = "How the last frame of the animation set will be handled",
+        items = [
+            ("optional", "Optional", "The last frame of the animation will be included if it naturally falls within the other settings selected"),
+            ("force_exclude", "Always excluded", "The last frame of the animation will be treated as if it didn't exist. This is useful in situations where an animation is repeating, and the last frame is a duplicate of the first for interpolation purposes"),
+            ("force_include", "Always included", "The last frame of the animation will always be included in the output; if it doesn't fall naturally within the output, then it will be appended, ignoring the frame skip setting")
+        ]
+    )
 
     name: bpy.props.StringProperty(
         name = "Animation Set Name",
@@ -119,8 +123,8 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
     )
 
     output_frame_rate: bpy.props.IntProperty(
-        name = "Output Frame Rate",
-        description = "The frame rate of this animation set. Not used in rendering, but included in JSON output for other tools to import",
+        name = "Frame Rate",
+        description = "The frame rate of this animation set (in frames per second). Not used in rendering, but included in JSON output for other tools to import",
         default = 24,
         min = 1
     )
@@ -146,24 +150,39 @@ class AnimationSetPropertyGroup(bpy.types.PropertyGroup):
             prop.target.animation_data.action = prop.action
 
     def get_frame_data(self) -> Optional[Tuple[int, int, int]]:
-        if len(self.actions) == 0:
+        frames = self.get_frames_to_render()
+
+        if len(frames) == 0:
             return None
+
+        frame_min = frames[0]
+        frame_max = frames[-1]
+        num_frames = frame_max - frame_min + 1
+        num_output_frames = len(frames)
+
+        return frame_data(frame_min, frame_max, num_frames, num_output_frames)
+
+    def get_frames_to_render(self) -> List[int]:
+        if len(self.actions) == 0:
+            return []
 
         selected_actions = self.get_selected_actions()
 
         if len(selected_actions) == 0:
-            return None
+            return []
 
         frame_min = min(a.min_frame for a in selected_actions)
         frame_max = max(a.max_frame for a in selected_actions)
 
-        if self.ignore_last_frame:
+        if self.last_frame_usage == "force_exclude":
             frame_max -= 1
 
-        num_frames = frame_max - frame_min + 1
-        num_output_frames = math.ceil(num_frames / (1 + self.frame_skip))
+        frames = list(range(frame_min, frame_max + 1, self.frame_skip + 1))
 
-        return frame_data(frame_min, frame_max, num_frames, num_output_frames)
+        if self.last_frame_usage == "force_include" and frames[-1] != frame_max:
+            frames.append(frame_max)
+
+        return frames
 
     def get_selected_actions(self) -> List[AnimationSetTargetPropertyGroup]:
         return list([a for a in self.actions if a.action is not None])
