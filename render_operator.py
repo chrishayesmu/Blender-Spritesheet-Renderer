@@ -12,13 +12,13 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import preferences
 
-from property_groups import AnimationSetPropertyGroup, MaterialSetPropertyGroup, ReportingPropertyGroup, SpritesheetPropertyGroup
-from util import Camera as CameraUtil
-from util import ImageMagick
-from util.TerminalOutput import TerminalWriter
-from util.SceneSnapshot import SceneSnapshot
-from util import StringUtil
-import utils
+from .property_groups import AnimationSetPropertyGroup, MaterialSetPropertyGroup, ReportingPropertyGroup, SpritesheetPropertyGroup
+from .util import Camera as CameraUtil
+from .util import ImageMagick
+from .util.TerminalOutput import TerminalWriter
+from .util.SceneSnapshot import SceneSnapshot
+from .util import StringUtil
+from . import utils
 
 class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
     """Operator for executing spritesheet rendering. This is a modal operator which is expected to run for a long time."""

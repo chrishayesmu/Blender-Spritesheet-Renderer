@@ -4,9 +4,9 @@ import os
 import subprocess
 from typing import Any, Dict, Optional, Tuple
 
-import preferences
+from .. import preferences
 
-from util import FileSystemUtil
+from . import FileSystemUtil
 
 def assemble_frames_into_spritesheet(sprite_size: Tuple[int, int], total_num_frames: int, temp_dir_path: str, output_file_path: str) -> Dict[str, Any]:
     image_magick_args = _image_magick_args(sprite_size, total_num_frames, temp_dir_path, output_file_path)

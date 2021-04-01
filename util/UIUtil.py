@@ -2,8 +2,8 @@ import bpy
 import textwrap
 from typing import List, Type
 
-import ui_panels
-from util import Register
+from .. import ui_panels
+from . import Register
 
 _created_types: List[Type[bpy.types.Panel]] = []
 

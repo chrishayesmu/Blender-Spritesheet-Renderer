@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import preferences
 
-from render_operator import SPRITESHEET_OT_RenderSpritesheetOperator
-from util import FileSystemUtil, StringUtil, UIUtil
+from .render_operator import SPRITESHEET_OT_RenderSpritesheetOperator
+from .util import FileSystemUtil, StringUtil, UIUtil
 
 # TODO: it would be nice to update one of these panels to show a preview of how many
 # sprites will be rendered into how many files, based on the current configuration

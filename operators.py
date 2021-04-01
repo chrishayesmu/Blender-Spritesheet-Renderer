@@ -1,10 +1,10 @@
 import bpy
 
-import preferences
-import property_groups
-import ui_panels
-from util import Camera as CameraUtil, FileSystemUtil, ImageMagick, SceneSnapshot, UIUtil
-import utils
+from . import preferences
+from . import property_groups
+from . import ui_panels
+from .util import Camera as CameraUtil, FileSystemUtil, ImageMagick, SceneSnapshot, UIUtil
+from . import utils
 
 class SPRITESHEET_OT_ConfigureRenderCameraOperator(bpy.types.Operator):
     bl_idname = "spritesheet.configure_render_camera"

@@ -1,12 +1,3 @@
-import bpy
-from bpy.app.handlers import persistent
-import functools
-import importlib
-import math
-import os
-import sys
-from typing import Any, Callable, List, Type, Union
-
 # Disable undefined-variable because our module imports are dynamic
 #pylint: disable=undefined-variable
 
@@ -22,10 +13,21 @@ bl_info = {
     "category": "Animation"
 }
 
+import bpy
+from bpy.app.handlers import persistent
+import functools
+import importlib
+import math
+import os
+import sys
+from typing import Any, Callable, List, Type, Union
+
 # Local files
 ADDON_DIR = os.path.dirname(os.path.realpath(__file__))
 if not ADDON_DIR in sys.path:
     sys.path.append(ADDON_DIR)
+
+print(f"[SpritesheetRenderer] Loading addon under Python version {sys.version}")
 
 # Pretty hacky here: we define all the modules as strings and load them dynamically so that we can easily reload them multiple times
 # Otherwise we have to load and reload them in dependency order and frequently we find our changes not taking effect during development
@@ -44,7 +46,7 @@ _locals = locals()
 _modules = []
 for module_def in module_defs:
     if isinstance(module_def, str):
-        module = importlib.import_module(module_def)
+        module = importlib.import_module("." + module_def, __name__)
         importlib.reload(module)
 
         _locals[module_def] = module
@@ -54,11 +56,8 @@ for module_def in module_defs:
         submods = module_def[1]
 
         # Don't add the parent module into locals, only submodules
-        root_module = importlib.import_module(module_name)
-        importlib.reload(root_module)
-
         for submod_name in submods:
-            submodule = getattr(root_module, submod_name)
+            submodule = importlib.import_module("." + module_name + "." + submod_name, __name__)
             importlib.reload(submodule)
 
             _locals[submod_name] = submodule

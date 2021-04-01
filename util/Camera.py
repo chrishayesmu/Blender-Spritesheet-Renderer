@@ -2,9 +2,9 @@ import bpy
 from mathutils import Vector
 from typing import List, Optional
 
-from property_groups import AnimationSetPropertyGroup
-from util.Bounds import Bounds2D
-import utils
+from ..property_groups import AnimationSetPropertyGroup
+from .Bounds import Bounds2D
+from .. import utils
 
 ####################################################################################
 # Public methods: same as private but don't return the Bounds object

@@ -3,8 +3,8 @@ import collections
 import math
 from typing import Iterable, List, Optional, Tuple
 
-from util import StringUtil
-import utils
+from .util import StringUtil
+from . import utils
 
 frame_data = collections.namedtuple('frame_data', 'frame_min frame_max num_frames num_output_frames')
 
