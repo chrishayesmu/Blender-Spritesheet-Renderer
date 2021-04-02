@@ -722,8 +722,8 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         frames_to_render = animation_set.get_frames_to_render()
         num_digits_in_frame_max = int(math.log10(frames_to_render[-1])) + 1
 
-        for index in frames_to_render:
-            text = f"({index - frames_to_render[0] + 1}/{len(frames_to_render)})"
+        for frame_num in frames_to_render:
+            text = f"({rendered_frames + 1}/{len(frames_to_render)})"
             self._report_job("Rendering frames", text, job_id, reporting_props)
 
             # Order of properties in filename is important; they need to sort lexicographically
@@ -734,14 +734,14 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             if props.rotation_options.control_rotation:
                 filename += "rot" + str(rotation).zfill(3) + "_"
 
-            filename += str(index).zfill(num_digits_in_frame_max)
+            filename += str(frame_num).zfill(num_digits_in_frame_max)
 
             filepath = os.path.join(temp_dir_path, filename)
 
-            if index == frames_to_render[0]:
+            if frame_num == frames_to_render[0]:
                 action_data["firstFrameFilepath"] = filepath + ".png"
 
-            scene.frame_set(index)
+            scene.frame_set(frame_num)
             scene.render.filepath = filepath
 
             self._run_render_without_stdout(context)
