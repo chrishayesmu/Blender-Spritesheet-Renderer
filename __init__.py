@@ -27,7 +27,7 @@ ADDON_DIR = os.path.dirname(os.path.realpath(__file__))
 if not ADDON_DIR in sys.path:
     sys.path.append(ADDON_DIR)
 
-print(f"[SpritesheetRenderer] Loading addon under Python version {sys.version}")
+print(f"[SpritesheetRenderer] Loading addon under Blender version {bpy.app.version_string} and Python version {sys.version}")
 
 # Pretty hacky here: we define all the modules as strings and load them dynamically so that we can easily reload them multiple times
 # Otherwise we have to load and reload them in dependency order and frequently we find our changes not taking effect during development
@@ -46,6 +46,8 @@ _locals = locals()
 _modules = []
 for module_def in module_defs:
     if isinstance(module_def, str):
+        print(f"[SpritesheetRenderer] Loading module {module_def}")
+
         module = importlib.import_module("." + module_def, __name__)
         importlib.reload(module)
 
@@ -57,15 +59,21 @@ for module_def in module_defs:
 
         # Don't add the parent module into locals, only submodules
         for submod_name in submods:
+            print(f"[SpritesheetRenderer] Loading module {module_name}.{submod_name}")
+
             submodule = importlib.import_module("." + module_name + "." + submod_name, __name__)
             importlib.reload(submodule)
 
             _locals[submod_name] = submodule
             _modules.append(submodule)
 
+print("[SpritesheetRenderer] Internal modules loaded; reloading all to pick up latest versions")
+
 # Reload everything again just to be sure the latest changes are picked up
 for mod in _modules:
     importlib.reload(mod)
+
+print("[SpritesheetRenderer] All internal modules reloaded")
 
 # This operator is in the main file so it has the correct module path
 class SPRITESHEET_OT_ShowAddonPrefsOperator(bpy.types.Operator):
