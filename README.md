@@ -41,7 +41,7 @@ I am personally working on a Unity project, so I have written an asset importer 
 # Installation
 
 1. (Prerequisite) Install [ImageMagick](https://imagemagick.org/script/download.php) from the official site. Note the installation path, as you may need to provide it in Blender later (though the add-on will attempt to auto-detect it when enabled).
-2. Download the [latest release](https://github.com/chrishayesmu/Blender-Spritesheet-Renderer/releases/latest) of Spritesheet Renderer. You do not need to unzip it.
+2. Download the [latest release](https://github.com/chrishayesmu/Blender-Spritesheet-Renderer/releases/latest) of Spritesheet Renderer. You do not need to unzip it. Make sure you are downloading the release file (Blender-Spritesheet-Renderer.zip) and **not** the zipped source code!
 3. In Blender, navigate to Edit > Preferences > Add-ons and click Install, selecting the ZIP file you just downloaded.
 4. Find "Animation: Spritesheet Renderer" in the list and make sure the add-on is enabled.
 5. In the add-on preferences, check that the ImageMagick path is populated. If not, provide the absolute path of `magick.exe` in your ImageMagick installation directory.
@@ -118,9 +118,9 @@ At the top of each material set is a button labeled "Assign in Scene", that swap
 
 > :grey_question: If you select an object without any [material slots](https://docs.blender.org/manual/en/latest/render/materials/assignment.html), one will be created and assigned to automatically while rendering or previewing.
 
-> :warning: If any select objected has more than 1 material slot, rendering will be disabled. Mapping each material to a material slot just becomes too complicated from a UI perspective for this addon. You'll have to split up your mesh so that each mesh can have a single material.
+> :warning: If any selected object has more than 1 material slot, rendering will be disabled. Mapping each material to a material slot just becomes too complicated from a UI perspective for this addon. You'll have to split up your objects so that each mesh can have a single material.
 
-Each material set can have a **role** assigned to it. This is simple metadata describing how that material set is ultimately used, which is passed through to the JSON output file for other tools to consume. It is also used internally for naming individual output files in a consistent way before they are combined into a single spritesheet; for this reason, the role must be unique across material sets (except for the "Other" role as this can feasibly be needed multiple times).
+Each material set can have a **role** assigned to it. This is simple metadata describing how that material set is ultimately used, which is passed through to the JSON output file for other tools to consume. It is also used internally for naming individual output files in a consistent way before they are combined into a single spritesheet; for this reason, the role must be unique across material sets (except for the "Other" role as this can feasibly be needed multiple times). The role has no effect on the actual rendered output. For example, selecting the "Normal (Unity)" role does not automatically produce a normal map. You still need to manually set up the materials to do that.
 </details>
 
 ## Rotation options
@@ -158,7 +158,7 @@ As an example of when this is useful, imagine a walking animation from left to r
 
 # Feedback
 
-If you do try out Spritesheet Renderer, feel free to [open an issue](https://github.com/chrishayesmu/Blender-Spritesheet-Renderer/issues/new) with any feedback or just to let me know. I'd love to hear from any users. If you're reporting a bug, please include your Blender and ImageMagick versions, as well as your OS.
+If you do try out Spritesheet Renderer, feel free to [open an issue](https://github.com/chrishayesmu/Blender-Spritesheet-Renderer/issues/new) with any feedback or just to let me know. I'd love to hear from any users. If you're reporting a bug, please include your Blender and ImageMagick versions, as well as your OS. If you are unable to install the addon, please open the system console in Blender (Window > Toggle System Console) and include the output that's printed there when attempting to install in your bug report.
 
 > :warning: If you are interacting with Spritesheet Renderer programmatically, especially using its operators, please let me know so I'm aware of the need for backwards compatibility in future releases.
 
