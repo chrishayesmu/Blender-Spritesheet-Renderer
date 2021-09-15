@@ -101,6 +101,9 @@ def _image_magick_args(sprite_size: Tuple[int, int], num_images: int, temp_dir_p
     files = sorted(glob.glob(os.path.join(temp_dir_path, "*.png")))
     in_file_path = os.path.join(temp_dir_path, "filelist.txt")
 
+    if len(files) != num_images:
+        raise RuntimeError(f"There should be {num_images} images, but found {len(files)} files")
+
     with open(in_file_path, "w") as f:
         quoted_files_string = "\n".join('"{0}"'.format(os.path.basename(f)) for f in files)
         f.write(quoted_files_string)

@@ -14,5 +14,8 @@
     "git.suggestSmartCommit": false,
     "git.terminalAuthentication": false,
     "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "python.analysis.extraPaths": [
+        "C:/Users/Chris/Downloads/blender_autocomplete-master/blender_autocomplete-master/2.90"
+    ]
 }

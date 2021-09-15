@@ -324,6 +324,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             material_set_name = material_set.name if material_set else "N/A"
             render_data = []
             temp_dir = tempfile.TemporaryDirectory()
+            temp_dir_path = temp_dir.name
 
             self._terminal_writer.write("Rendering material set {} of {}: \"{}\"\n".format(material_number, len(material_sets), material_set_name))
             self._terminal_writer.indent += 1
@@ -344,8 +345,6 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
                 if props.camera_options.control_camera and props.camera_options.camera_control_mode == "move_each_rotation":
                     self._optimize_camera(context, rotations = rotations, animation_sets = animation_sets, current_rotation = rotation_angle)
-
-                temp_dir_path = temp_dir.name
 
                 for animation_set in animation_sets:
                     animation_set_number += 1
@@ -376,7 +375,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
                             frames_since_last_output = 0
                             render_data = []
+                            temp_dir.cleanup()
                             temp_dir = tempfile.TemporaryDirectory() # change directories for per-frame files
+                            temp_dir_path = temp_dir.name
 
                         self._terminal_writer.indent -= 1
                     else:
@@ -405,6 +406,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                     frames_since_last_output = 0
                     render_data = []
                     temp_dir = tempfile.TemporaryDirectory() # change directories for per-frame files
+                    temp_dir_path = temp_dir.name
 
                 self._terminal_writer.indent -= 1
 
@@ -427,6 +429,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 frames_since_last_output = 0
                 render_data = []
                 temp_dir = tempfile.TemporaryDirectory() # change directories for per-frame files
+                temp_dir_path = temp_dir.name
 
             self._terminal_writer.indent -= 1
 
