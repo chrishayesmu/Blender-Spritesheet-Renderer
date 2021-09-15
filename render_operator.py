@@ -168,7 +168,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         self._last_job_start_time: Optional[float] = None
         self._next_job_id: int = 0
         self._scene_snapshot: SceneSnapshot = SceneSnapshot(context)
-        self._start_time: float = time.clock()
+        self._start_time: float = time.perf_counter()
         self._terminal_writer: TerminalWriter = TerminalWriter(sys.stdout, not reporting_props.output_to_terminal)
 
         # Execute generator a single time to set up all reporting properties and validate config; this won't render anything yet
@@ -181,7 +181,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
     def modal(self, context, event):
         reporting_props = context.scene.ReportingPropertyGroup
-        reporting_props.elapsed_time = time.clock() - self._start_time
+        reporting_props.elapsed_time = time.perf_counter() - self._start_time
 
         if event.type in {"ESC"}:
             self._error = "Job cancelled by request of user"
@@ -437,7 +437,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         # Do some sanity checks and modify the final output based on the result
         sanity_checks_passed = self._perform_ending_sanity_checks(num_expected_json_files, reporting_props)
-        total_elapsed_time = time.clock() - self._start_time
+        total_elapsed_time = time.perf_counter() - self._start_time
         time_string = StringUtil.time_as_string(total_elapsed_time)
 
         completion_message = "Rendering complete in " + time_string if sanity_checks_passed else "Rendering FAILED after " + time_string
@@ -795,9 +795,9 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
                 self._terminal_writer.write(f"\nWARNING: incoming job ID {job_id} is smaller than the last job ID {self._last_job_id}. This indicates a coding error in the addon.\n\n")
 
             self._last_job_id = job_id
-            self._last_job_start_time = time.clock()
+            self._last_job_start_time = time.perf_counter()
 
-        job_time_spent = time.clock() - self._last_job_start_time
+        job_time_spent = time.perf_counter() - self._last_job_start_time
         job_time_spent_string = f"[{StringUtil.time_as_string(job_time_spent, precision = 2, include_hours = False)}]"
 
         msg = title + ": " + text
