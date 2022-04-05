@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import traceback
+import shutil
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import preferences
@@ -443,7 +444,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         completion_message = "Rendering complete in " + time_string if sanity_checks_passed else "Rendering FAILED after " + time_string
 
         # Final output: show operator total time and a large completion message to be easily noticed
-        term_size = os.get_terminal_size()
+        term_size = shutil.get_terminal_size()
         self._terminal_writer.write("\n")
         self._terminal_writer.write(term_size.columns * "=" + "\n")
         self._terminal_writer.write( (term_size.columns // 2) * " " + completion_message + "\n")
@@ -690,7 +691,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         text_prefix = f"{title} {numbers_display}"
 
         if width is None:
-            width = os.get_terminal_size().columns - len(text_prefix) - 10
+            width = shutil.get_terminal_size().columns - len(text_prefix) - 10
 
         progress_percent = numerator / denominator
         completed_places = math.floor(progress_percent * width)
@@ -827,11 +828,11 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
             time_remaining_string = f"Time remaining: {StringUtil.time_as_string(reporting_props.estimated_time_remaining, precision = 2)}"
 
             # Make the strings repeat on the right side of the terminal, with a small indent
-            columns_remaining = os.get_terminal_size().columns - len(time_elapsed_string) - 10
+            columns_remaining = shutil.get_terminal_size().columns - len(time_elapsed_string) - 10
             fmt_string = "{0} {1:>" + str(columns_remaining) + "}\n"
             time_elapsed_string = fmt_string.format(time_elapsed_string, time_elapsed_string)
 
-            columns_remaining = os.get_terminal_size().columns - len(time_remaining_string) - 10
+            columns_remaining = shutil.get_terminal_size().columns - len(time_remaining_string) - 10
             fmt_string = "{0} {1:>" + str(columns_remaining) + "}\n\n"
             time_remaining_string = fmt_string.format(time_remaining_string, time_remaining_string)
 
