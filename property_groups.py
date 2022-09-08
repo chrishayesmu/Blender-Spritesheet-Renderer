@@ -568,6 +568,13 @@ class SpritesheetPropertyGroup(bpy.types.PropertyGroup):
         default = False
     )
 
+    output_dir: bpy.props.StringProperty(
+        name = "Output Directory",
+        description = "The output directory where the spritesheets are to be saved",
+        default = "./Rendered spritesheets",
+        subtype = "DIR_PATH"
+    )
+
     sprite_size: bpy.props.IntVectorProperty(
         name = "Sprite Size",
         description = "How large each individual sprite should be. If non-square, the camera's output will be cropped, not scaled",

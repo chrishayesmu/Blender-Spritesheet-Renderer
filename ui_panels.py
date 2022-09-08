@@ -487,6 +487,7 @@ class SPRITESHEET_PT_OutputPropertiesPanel(BaseAddonPanel, bpy.types.Panel):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
 
+        self.layout.prop(props, "output_dir")
         self.layout.prop(props, "sprite_size")
 
         col = self.layout.column(heading = "Output Size", align = True)
