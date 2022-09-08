@@ -1,3 +1,4 @@
+from posixpath import isabs
 import bpy
 import collections
 import json
@@ -221,7 +222,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         reporting_props.has_any_job_started = True
         reporting_props.job_in_progress = True
-        reporting_props.output_directory = self._base_output_dir()
+        reporting_props.output_directory = self._base_output_dir(context.scene.SpritesheetPropertyGroup)
 
     def cancel(self, context):
         reporting_props = context.scene.ReportingPropertyGroup
@@ -451,13 +452,16 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
 
         return
 
-    def _base_output_dir(self) -> str:
+    def _base_output_dir(self, props: SpritesheetPropertyGroup) -> str:
+        if os.path.isabs(props.output_dir):
+            return props.output_dir
+
         if bpy.data.filepath:
             out_dir = os.path.dirname(bpy.data.filepath)
-            return os.path.join(out_dir, "Rendered spritesheets")
+            return os.path.join(out_dir, props.output_dir)
 
         # Use the user's home directory
-        return os.path.join(str(pathlib.Path.home()), "Rendered spritesheets")
+        return os.path.join(str(pathlib.Path.home()), props.output_dir)
 
     def _create_file_path(self, props: SpritesheetPropertyGroup, material_set_index: int, animation_set: Optional[AnimationSetPropertyGroup], rotation_angle: int, include_material_set: bool = True) -> str:
         if bpy.data.filepath:
@@ -465,7 +469,7 @@ class SPRITESHEET_OT_RenderSpritesheetOperator(bpy.types.Operator):
         else:
             filename = "spritesheet"
 
-        output_file_path = os.path.join(self._base_output_dir(), filename)
+        output_file_path = os.path.join(self._base_output_dir(props), filename)
 
         # Make sure output directory exists
         pathlib.Path(os.path.dirname(output_file_path)).mkdir(exist_ok = True)
